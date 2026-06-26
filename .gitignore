@@ -1,0 +1,25 @@
+# === Internal / no-public docs (estrategia, routing de modelos, brainstorming) ===
+docs/brainstorming/
+docs/internal/
+
+# === Build artifacts pesados (regenerables) ===
+**/node_modules/
+**/target/
+
+# === Circom / snarkjs artefactos regenerables ===
+*.ptau
+*.zkey
+*.wtns
+*.r1cs
+*.sym
+*.wasm
+# generadores de witness (terroir_link_js, multiplier2_js)
+**/*_js/
+
+# === Claude/herramientas locales ===
+.claude/settings.local.json
+
+# === Misc ===
+.DS_Store
+*.log
+*Zone.Identifier
