@@ -198,3 +198,62 @@ alta en manejo de fondos **bloquea** el cierre hasta corregir y re-auditar.
 1. Cuando un agente termine una tarea, me pasas su diff/branch → corro la compuerta de auditoría correspondiente y te devuelvo PASA / hallazgos.
 2. Yo congelo la **interfaz de señales (Decisión A)** y la VK; si un agente la cambia, lo marco como regresión.
 3. El cierre del Día 2 lo declaro yo sólo cuando el hito demostrable (sección 1) corre en testnet y pasa auditoría.
+
+---
+
+## 8. Prompts operativos (handoffs listos para pegar en OpenCode)
+
+> Contexto común a anteponer en todos: *"Repo en `/home/manuel/proyectos/zk-terroir`. Lee
+> `docs/PLAN-DIA-2.md` §2 (decisiones A–I) y `docs/AUDIT-LOG.md`. No cambies el orden de señales
+> públicas (Decisión A)."*
+
+### 8.1 T3-esqueleto · GLM-5.2 — estructura + lógica, SIN VK real ni deploy
+Implementa el **esqueleto** del contrato Soroban `contracts/terroir/` (soroban-sdk 25.1.0). Reusa la
+verificación Groth16 BN254 de `spike/contract/src/lib.rs` (`crypto::bn254`, structs
+`Proof`/`VerificationKey`, `pairing_check`).
+
+**EN ALCANCE (completo):**
+- `init(admin, token: Address)`, `set_certifier_root(admin, r_cert: BytesN<32>)` con `require_auth(admin)`.
+- `claim_premium(proof: Proof, pub_signals: Vec<Fr>, payout: Address)`: parsea `pub_signals` en
+  orden **Decisión A** `[r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo,
+  nullifier_hash]`; exige `pub_signals[0]==certifier_root`; nullifier=`pub_signals[6]` no-usado en
+  Map **persistente**, insértalo; llama la verificación Groth16; valida binding payout (Decisión E o
+  fallback); transfiere `premium_amount` (i128) SEP-41 desde `current_contract_address` a `payout`;
+  registra `lot_commit`. **Orden checks-effects-interactions: transfer al final.**
+- `lot_status(lot_commit) -> Option<u64>`. Storage persistente con bump de TTL.
+- Tests unitarios con **token mock** (`soroban_sdk::testutils`): happy path, doble-cobro, root malo, amount 0.
+
+**DIFERIDO (NO hacer; deja TODO marcado):**
+- **NO hornees la VK real:** `fn vk(env)->VerificationKey` devuelve un **placeholder** con
+  `// TODO(T1): pegar verification_key.json del circuito de 3 eslabones`. El test cripto va `#[ignore]`.
+- **NO despliegues** a testnet ni E2E con prueba real.
+
+**Aceptación:** `stellar contract build` compila a wasm; `cargo test` verde para la lógica no-cripto
+con el token mock; VK como TODO claramente marcado.
+
+### 8.2 T3-final · GLM-5.2 — hornear VK + deploy + E2E (sólo tras T1 re-auditado ✅)
+Cierra `contracts/terroir/`. Requiere que **T1 corregido haya pasado mi auditoría**.
+
+- **Hornea la VK real:** serializa `circuits/verification_key.json` al layout BN254 (swap G2
+  `c1‖c0`, usa la lógica de `spike/circuit/serialize.js`) y reemplaza el placeholder `vk()` con las
+  constantes reales.
+- Quita el `#[ignore]`: añade un test happy-path con **prueba real** (serializa `circuits/proof.json`
+  + `circuits/public.json`) → `claim_premium` verifica `true` y paga.
+- **Deploy a testnet** + `init(admin, token=<TUSDC_SAC de deployments/testnet.json>)` +
+  `set_certifier_root(<r_cert = public.json[0]>)`. Publica el `CONTRACT_ID`.
+- **Coordina con T5:** tras desplegar, T5 re-mintea TUSDC al `CONTRACT_ID` (ver 8.3).
+- **E2E testnet:** envía la prueba real por `claim_premium`; asserta balance de `payout` += `premium_amount`;
+  replay con mismo nullifier → falla; prueba manipulada → falla.
+
+**Aceptación:** compuerta de auditoría T3 (§6) + E2E verde en testnet. Avísame para auditoría final.
+
+### 8.3 T5 re-mint · MiniMax M3 — cuando T3 haya desplegado
+El contrato `terroir` ya está desplegado: `CONTRACT_ID=<C… del deploy de T3>`. Re-apunta el escrow:
+1. `ESCROW_ADDRESS=$CONTRACT_ID ./scripts/setup_token.sh` (re-mintea TUSDC al contrato; idempotente).
+2. Verifica: `stellar contract invoke --id <TUSDC_SAC> --source terroir --network testnet -- balance
+   --id $CONTRACT_ID` → > `premium_amount` del lote de prueba.
+3. Actualiza `deployments/testnet.json`: `terroir_contract` y `escrow` = `$CONTRACT_ID`.
+
+⚠️ **Gotcha (auditar antes del E2E):** si `payout` es cuenta **G**, necesita **trustline a TUSDC** o
+el `transfer` revierte. Establece el trustline (`stellar tx new change-trust --line TUSDC:<issuer>
+--source <payout>`) o usa una dirección **C** (contrato, sin trustline). Suele tumbar el primer E2E.

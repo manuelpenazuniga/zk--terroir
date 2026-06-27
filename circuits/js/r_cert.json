@@ -1,0 +1,16 @@
+{
+  "r_cert": "10148290009066212359156929291112542515335866393865463298929756215899883615317",
+  "levels": 10,
+  "hash": "Poseidon(BN254) — circomlibjs con constantes idénticas a circomlib",
+  "leafFormulas": [
+    "Poseidon(certifier_pk[0], lot_id, price_paid, lot_secret)",
+    "Poseidon(certifier_pk[1], lot_id, attest_data[0])",
+    "Poseidon(certifier_pk[2], lot_id, attest_data[1])"
+  ],
+  "leafIndexes": [
+    0,
+    1,
+    2
+  ],
+  "generatedAt": "2026-06-27T15:19:19.191Z"
+}
