@@ -66,7 +66,92 @@ sólo direcciones públicas ✅. Scripts idempotentes (declarado).
 
 ---
 
-## Estado del DAG tras auditoría
+## Estado del DAG tras auditoría (ronda 1)
 - **T1 → re-trabajo (GLM-5.2)** con la corrección de binding de arriba. **Decisión A NO cambia.**
 - **T2 / T3-esqueleto:** pueden avanzar (públicos congelados intactos); la VK se hornea al cerrar T1.
 - **T5:** cerrado; pendiente re-mint al contrato cuando T3 exista.
+
+---
+
+# Ronda 2 — T1 v2 / T2 / T3-esqueleto
+
+## T2 — Infra JS (buildTree/genWitnessInput) · MiniMax M3 · **✅ PASA**
+Reproducido: `r_cert.json` (10148290…615317) == `public.json[0]` ✅ (Poseidon JS↔circuito consistente).
+`genWitnessInput` produce el `input.json` que genera una prueba que verifica off-chain y **on-chain
+`true`**. Hojas nuevas (leaf_0 de 4 entradas) coherentes con el circuito v2. Sin regresión.
+
+## T1 v2 — Circuito · GLM-5.2 · **❌ NO PASA (1 residual ALTA)**
+Reproducido: off-chain OK, on-chain `true`, orden público intacto.
+- **H2 (premium arbitrario) → ✅ CERRADO:** `leaf_0 = Poseidon(pk_0, lot_id, price_paid, lot_secret) ∈
+  R_cert` ata `price_paid` a una atestación; `premium === price_paid - floor_price`. Ya no es libre.
+- **H1 (cadena) → ✅ ACEPTADO con nota:** cadena eliminada; `lot_id` en cada hoja ata los 3 al mismo
+  lote. Se pierde el **orden** finca→coop→tostador. Aceptable para MVP; **documentar en README** que
+  el orden de custodia es stretch Día 3.
+- **H3 (doble cobro) → ❌ RESIDUAL (ALTA, sigue drenando):** `lot_secret` quedó atado, **pero
+  `season_id` sigue siendo input privado LIBRE** (`terroir_chain.circom:83`, sólo se usa en
+  `lot_commit` y `nullifier_hash`, no va en ninguna hoja). `nullifier_hash = Poseidon(lot_secret,
+  season_id)` → el atacante varía `season_id` → nullifier fresco en cada claim → **reclama el mismo
+  lote infinitas veces**. **Fix:** meter `season_id` en `leaf_0`
+  (`Poseidon(pk_0, lot_id, season_id, price_paid, lot_secret)`) para que la atestación fije la temporada.
+- LOW: `leaf_1`/`leaf_2` sin constraint de distinción → un atacante podría usar el mismo certificador
+  acreditado para ambos (≥2 miembros distintos en vez de 3). Documentar o añadir `pk_1 != pk_2`.
+
+## T3-esqueleto — Contrato · GLM-5.2 · **✅ PASA como esqueleto (2 fixes obligatorios antes de T3-final)**
+Reproducido: `stellar contract build` → wasm 8883 B; `cargo test` → 6 pasan + 1 ignored.
+- Decisiones A/F/G/H/I aplicadas correctamente. **CEI correcto** (transfer al final; nullifier se
+  inserta DESPUÉS de verify). Nullifier en storage **persistente** + TTL ✅. Overflow i128 ✅.
+- **Binding de payout (Decisión E "strong") → ✅ VERIFICADO REAL:** usa `addr.to_payload()` +
+  `AddressPayload::{AccountIdPublicKeyEd25519,ContractIdHash}` (feature `hazmat-address`) — **API real
+  del SDK 25.1.0** (confirmado en `address_payload.rs`). Layout hi/lo (hi=addr[0..16], lo=addr[16..32]
+  en los 16 bytes bajos de cada Fr) **coincide** entre `gen_input.js`, `check_payout_binding` y el test.
+- **Bypass `#[cfg(test)]` en `verify()` (lib.rs:237-249) → ✅ BIEN GATEADO:** `cfg(not(test))` usa la
+  verificación real en el wasm; el bypass NO entra al binario (confirmado: build real compila el path
+  real). **Pero:** bajo `cfg(test)` `verify()` SIEMPRE devuelve `true`, así que el happy-path **no
+  ejercita cripto**. → en T3-final hay que **eliminar el bypass** y usar prueba+VK reales, o la
+  verificación queda sin cobertura automática.
+- **❌ HALLAZGO NUEVO (ALTA, inflación de premium): `floor_price` NO se valida.** `claim_premium`
+  hace `let _floor_price = pub_signals.get(1)` (lib.rs:119) y **nunca lo compara contra un piso
+  almacenado**. Como en el circuito `premium = price_paid - floor_price` y `floor_price` es un público
+  que **provee el prover**, éste pone `floor_price` bajo → infla `premium_amount` hasta el `price_paid`
+  atestado completo, y el contrato paga ese monto. **Fix:** almacenar el piso (`set_floor(admin,floor)`)
+  y exigir `pub_signals[1] == floor_almacenado` en `claim_premium`.
+
+### Estado DAG (ronda 2)
+- **T1 → v3 (GLM-5.2):** atar `season_id` en `leaf_0` (+ opcional `pk_1!=pk_2`). Regenerar prueba/VK. Re-audito.
+- **T3-final** debe además: (a) pin de `floor_price`; (b) quitar el bypass `cfg(test)`. (Ya dependía de la VK de T1.)
+- **T2 ✅, payout binding ✅** — no se tocan.
+
+---
+
+# Ronda 3 — T1 v3 / T3 floor fix
+
+## T1 v3 — Circuito · GLM-5.2 · **✅ PASA**
+Reproducido: off-chain OK, on-chain `true`, Decisión A intacta (IC=8).
+- **H3 (doble cobro) → ✅ CERRADO Y PROBADO ADVERSARIALMENTE.** `season_id` ahora va dentro de
+  `leaf_0 = Poseidon(pk_0, lot_id, season_id, price_paid, lot_secret)` (`terroir_chain.circom:168-173`)
+  y es el MISMO signal usado en `nullifier_hash`. **Ataque ejecutado** (`circuits/double_spend_attack.js`):
+  season'=season+1, recomputando `lot_commit'`/`nullifier'` pero manteniendo `r_cert` y los paths →
+  el witness es **RECHAZADO**: `Assert Failed @ MerkleInclusion line 47 (root===cur)` vía `inc0`
+  (`TerroirChain line 180`). El control (input original) genera witness OK (exit 0). → no se puede
+  reciclar el nullifier variando la temporada.
+- **LOW (distinción de certificadores) → ✅ cerrado:** 3 `IsEqual().out===0` (pk0≠pk1, pk0≠pk2,
+  pk1≠pk2). *Nit:* el comentario `:135-136` dice que pk0 no se chequea, pero el código SÍ lo chequea
+  (más estricto). Corregir comentario (no funcional).
+- Recordatorio H1: cadena de orden sigue fuera (MVP) → documentar en README.
+
+**Veredicto: el circuito de 3 eslabones es SOUND.** H1 (aceptado/documentado), H2 (cerrado), H3 (cerrado+probado).
+
+## T3 floor fix — Contrato · GLM-5.2 · **✅ PASA**
+Reproducido: build wasm 9673 B, 5 funciones, `cargo test` → 10 pasan + 1 ignored.
+- `set_floor(admin, i128)` admin-only + rechaza negativos; `claim_premium` exige
+  `pub_signals[1]==floor_almacenado` (`lib.rs:163-175`), orden root→floor→amount→nullifier→crypto→payout→transfer (CEI ok).
+- **Inflación de premium → ✅ CERRADA en conjunto:** floor pinned (contrato) + `price_paid` atado en
+  `leaf_0` (T1 v3) → `premium = price_paid − floor` con ambos extremos fijados. *Nit:* el comentario
+  `lib.rs:165-168` dice que H2 sigue abierto; está **desactualizado** (T1 v2/v3 ya ató `price_paid`).
+  Actualizar comentario (no funcional).
+
+### Estado DAG (ronda 3) — circuito y lógica de fondos SOUND
+- **T1 v3 ✅, T2 ✅, T3 esqueleto+floor ✅, T5 ✅.**
+- **Desbloqueado: T3-final** (§8.2) — hornear VK de T1 v3, **quitar bypass `cfg(test)`**, deploy,
+  + T5 re-mint al contrato + trustline del payout, y **E2E en testnet** (hito Definition of Done §1).
+- Cleanups menores (no bloqueantes): 2 comentarios desactualizados (circuito :135, contrato :165) → T7/docs.

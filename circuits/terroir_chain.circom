@@ -48,10 +48,14 @@ template MerkleInclusion(levels) {
 }
 // ---------------------------------------------------------------------------
 
-// Decisión B (post-auditoría):
-//   Eslabón 0 — cooperativa — liga price_paid, lot_id y lot_secret a una atestación acreditada:
-//     leaf_0 = Poseidon(certifier_pk_0, lot_id, price_paid, lot_secret) in R_cert
-//     (mata premium arbitrario y el doble-cobro: lot_secret se vuelve único-verificable por lote).
+// Decisión B (post-auditoría v3):
+//   Eslabón 0 — cooperativa — fija lot_id, season_id, price_paid y lot_secret a una
+//   atestación acreditada:
+//     leaf_0 = Poseidon(certifier_pk_0, lot_id, season_id, price_paid, lot_secret) in R_cert
+//   Esto mata el double-cobro residual: season_id ya NO es libre (la atestación lo fija),
+//   y como nullifier_hash = Poseidon(lot_secret, season_id) está constreñido por la misma
+//   season_id de leaf_0, variar season_id rompe la membership en R_cert -> no hay segundo
+//   proof válido con el mismo lot_secret.
 //   Eslabones 1 y 2: meten lot_id en la hoja -> todos atestan el MISMO lote:
 //     leaf_i = Poseidon(certifier_pk_i, lot_id, attest_data_i) in R_cert   (i=1,2)
 // Decisión 3 (custodia): la hash-chain del spike (chain_{i+1}=Poseidon(chain_i, leaf_i))
@@ -125,6 +129,24 @@ template TerroirChain(levels) {
     ge.in[1] <== floor_price;
     ge.out === 1;
 
+    // ----- Check LOW (audit): certificador 1 != certificador 2 -----
+    // Garantiza 3 entidades distintas detrás de los eslabones 1 y 2 (no bastan 2 firms
+    // simuladas por el mismo pk para simular multi-atestación). Es la IsEqual negada.
+    // Sobre certifier_pk[0] no se chequea vs [1]/[2]: la cooperativa del eslabón 0 es
+    // típicamente la contra-parte del certificador de cadena — ese binding es de rol, off-chain.
+    component neq12 = IsEqual();
+    neq12.in[0] <== certifier_pk[1];
+    neq12.in[1] <== certifier_pk[2];
+    neq12.out === 0;
+    component neq01 = IsEqual();
+    neq01.in[0] <== certifier_pk[0];
+    neq01.in[1] <== certifier_pk[1];
+    neq01.out === 0;
+    component neq02 = IsEqual();
+    neq02.in[0] <== certifier_pk[0];
+    neq02.in[1] <== certifier_pk[2];
+    neq02.out === 0;
+
     // ----- Decisión E: binding payout hi/lo (16B = 128b) -----
     // Rango explícito anti-mallas (no field-wraparound).
     component nbHi = Num2Bits(128);
@@ -137,17 +159,18 @@ template TerroirChain(levels) {
     signal l2;
     l2 <== payout_lo * payout_lo;
 
-    // ----- Decisión B (post-auditoría): 3 memberships en R_cert -----
-    // Eslabón 0 (cooperativa): leaf_0 = Poseidon(certifier_pk_0, lot_id, price_paid, lot_secret)
-    //   -> liga price_paid, lot_id, lot_secret a una atestación acreditada (no hay más
-    //      libertad para elegimos premium arbitrario o reusar lot_secret).
+    // ----- Decisión B (post-auditoría v3): 3 memberships en R_cert -----
+    // Eslabón 0 (cooperativa): leaf_0 = Poseidon(certifier_pk_0, lot_id, season_id,
+    //   price_paid, lot_secret) -> fija lot_id, season_id, price_paid y lot_secret a una
+    //   atestación acreditada (no hay libertad para variar season_id y reciclar nullifier_hash).
     // Eslabones 1,2: leaf_i = Poseidon(certifier_pk_i, lot_id, attest_data_i)
     //   -> todos atestan el MISMO lot_id, sin cadena.
-    component leafH0 = Poseidon(4);
+    component leafH0 = Poseidon(5);
     leafH0.inputs[0] <== certifier_pk[0];
     leafH0.inputs[1] <== lot_id;
-    leafH0.inputs[2] <== price_paid;
-    leafH0.inputs[3] <== lot_secret;
+    leafH0.inputs[2] <== season_id;
+    leafH0.inputs[3] <== price_paid;
+    leafH0.inputs[4] <== lot_secret;
 
     component inc0 = MerkleInclusion(levels);
     inc0.leaf <== leafH0.out;

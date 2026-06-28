@@ -138,8 +138,9 @@ struct Setup<'a> {
 }
 
 /// Register the terroir contract + a mock SAC token (SEP-41), mint the escrow,
-/// `init`, and `set_certifier_root` with `r_cert`. `mock_all_auths` is on.
-fn setup<'a>(r_cert: &[u8; 32]) -> Setup<'a> {
+/// `init`, `set_certifier_root` with `r_cert`, and `set_floor` with
+/// `floor_price`. `mock_all_auths` is on.
+fn setup<'a>(r_cert: &[u8; 32], floor_price: i128) -> Setup<'a> {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -159,6 +160,7 @@ fn setup<'a>(r_cert: &[u8; 32]) -> Setup<'a> {
     // guarantee r_cert < BN254 scalar field order (clear top 2 bits).
     rb[0] &= 0x3F;
     client.set_certifier_root(&admin, &BytesN::from_array(&env, &rb));
+    client.set_floor(&admin, &floor_price);
 
     Setup {
         env,
@@ -183,7 +185,7 @@ fn test_vk_placeholder_shape() {
 #[test]
 fn test_happy_path() {
     let s = default_signals();
-    let st = setup(&s.r_cert);
+    let st = setup(&s.r_cert, s.floor_price as i128);
 
     // r_cert stored by setup is the top-2-bits-cleared version; mirror it.
     let mut r_cert_stored = s.r_cert;
@@ -233,7 +235,7 @@ fn test_double_spend() {
     // the second claim with the SAME nullifier must panic. The whole body runs
     // under #[should_panic]; the first claim must NOT panic, only the second.
     let s = default_signals();
-    let st = setup(&s.r_cert);
+    let st = setup(&s.r_cert, s.floor_price as i128);
     let mut r_cert_stored = s.r_cert;
     r_cert_stored[0] &= 0x3F;
 
@@ -261,7 +263,7 @@ fn test_double_spend() {
 #[should_panic(expected = "root mismatch")]
 fn test_bad_root() {
     let s = default_signals();
-    let st = setup(&s.r_cert);
+    let st = setup(&s.r_cert, s.floor_price as i128);
 
     // build signals with a DIFFERENT r_cert than the one stored.
     let mut wrong_r_cert = s.r_cert;
@@ -287,7 +289,7 @@ fn test_bad_root() {
 #[should_panic(expected = "amount zero")]
 fn test_amount_zero() {
     let s = default_signals();
-    let st = setup(&s.r_cert);
+    let st = setup(&s.r_cert, s.floor_price as i128);
     let mut r_cert_stored = s.r_cert;
     r_cert_stored[0] &= 0x3F;
 
@@ -311,20 +313,111 @@ fn test_amount_zero() {
 #[should_panic(expected = "unauthorized")]
 fn test_set_root_non_admin() {
     let s = default_signals();
-    let st = setup(&s.r_cert);
+    let st = setup(&s.r_cert, s.floor_price as i128);
     let attacker = Address::generate(&st.env);
     // attacker authenticates as themselves (mock_all_auths) but is not admin.
     st.client
         .set_certifier_root(&attacker, &BytesN::from_array(&st.env, &s.r_cert));
 }
 
+#[test]
+#[should_panic(expected = "unauthorized")]
+fn test_set_floor_non_admin() {
+    let s = default_signals();
+    let st = setup(&s.r_cert, s.floor_price as i128);
+    let attacker = Address::generate(&st.env);
+    st.client.set_floor(&attacker, &999);
+}
+
+#[test]
+#[should_panic(expected = "floor negative")]
+fn test_set_floor_negative() {
+    // Admin legitimately authenticates, but a negative floor is rejected.
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(Terroir, ());
+    let client = TerroirClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let token = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+    StellarAssetClient::new(&env, &token).mint(&contract_id, &i128::MAX);
+    client.init(&admin, &token);
+    client.set_floor(&admin, &-1);
+}
+
+#[test]
+#[should_panic(expected = "floor mismatch")]
+fn test_bad_floor() {
+    // Stored floor != pub_signals[1] → panic "floor mismatch" (fires before
+    // crypto, so the placeholder proof is fine).
+    let s = default_signals();
+    let st = setup(&s.r_cert, s.floor_price as i128);
+    let mut r_cert_stored = s.r_cert;
+    r_cert_stored[0] &= 0x3F;
+
+    let payout = Address::generate(&st.env);
+    // submit signals with a DIFFERENT floor than the one stored by setup.
+    let pub_signals = build_pub_signals(
+        &st.env,
+        &{
+            let mut s = s;
+            s.r_cert = r_cert_stored;
+            s.floor_price += 1; // mismatch
+            s
+        },
+        &payout,
+    );
+    let proof = placeholder_proof(&st.env);
+
+    st.client.claim_premium(&proof, &pub_signals, &payout);
+}
+
+#[test]
+#[should_panic(expected = "floor not set")]
+fn test_floor_not_set() {
+    // init + set_certifier_root but NO set_floor → claim must panic.
+    let s = default_signals();
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(Terroir, ());
+    let client = TerroirClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let token = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+    StellarAssetClient::new(&env, &token).mint(&contract_id, &i128::MAX);
+    client.init(&admin, &token);
+    let mut rb = s.r_cert;
+    rb[0] &= 0x3F;
+    client.set_certifier_root(&admin, &BytesN::from_array(&env, &rb));
+    // deliberately NOT calling set_floor
+
+    let mut r_cert_stored = s.r_cert;
+    r_cert_stored[0] &= 0x3F;
+    let payout = Address::generate(&env);
+    let pub_signals = build_pub_signals(
+        &env,
+        &{
+            let mut s = s;
+            s.r_cert = r_cert_stored;
+            s
+        },
+        &payout,
+    );
+    client.claim_premium(&placeholder_proof(&env), &pub_signals, &payout);
+}
+
 // ---------------------------------------------------------------------------
-// Crypto test (DEFERRED). TODO(T1): bake the real 3-link VK + a real proof,
-// drop the #[ignore], and assert groth16_verify == true end-to-end.
+// Crypto test (DEFERRED). TODO(T3-final): bake the real 3-link VK +
+// real proof, drop the #[ignore], and assert groth16_verify == true
+// end-to-end. ALSO: remove the #[cfg(test)] bypass in verify() and switch
+// test_happy_path / test_double_spend to real proof + pub_signals (serialize
+// circuits/proof.json + public.json). Requiere T1 re-auditado ✅.
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore = "TODO(T1): replace placeholder VK + spike proof with the real 3-link verification_key.json + proof.json"]
+#[ignore = "TODO(T3-final): replace placeholder VK + spike proof with the real 3-link verification_key.json + proof.json (tras T1 re-auditado)"]
 fn test_groth16_with_real_vk() {
     let env = Env::default();
     let vk = vk(&env);
@@ -335,7 +428,7 @@ fn test_groth16_with_real_vk() {
     // uses in the wasm build). The placeholder VK reuses the spike's a*b=c
     // points with ic padded to 8; with public input 33 (0x21) and the rest
     // zero, vk_x collapses to ic[0] + 33*ic[1] and the spike proof verifies.
-    // This proves the wiring is correct — NOT the 3-link circuit (TODO(T1)).
+    // This proves the wiring is correct — NOT the 3-link circuit (TODO(T3-final)).
     let proof = placeholder_proof(&env);
     let mut pub_signals = Vec::new(&env);
     pub_signals.push_back(fr(

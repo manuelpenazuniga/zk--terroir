@@ -11,9 +11,18 @@
 //! `[r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo,
 //! nullifier_hash]` (7 signals → VK.ic.len() == 8). Do NOT reorder.
 //!
-//! Storage (Decisión H): `admin`/`token`/`certifier_root` in instance storage;
-//! `nullifiers`/`lots` as persistent entries with TTL bump on write.
+//! Storage (Decisión H): `admin`/`token`/`certifier_root`/`floor_price` in
+//! instance storage; `nullifiers`/`lots` as persistent entries with TTL bump.
 //! Order (Decisión I): checks → effects → interaction (SEP-41 transfer last).
+//!
+//! Floor binding: `claim_premium` exige `pub_signals[1] == floor_almacenado`
+//! (anti inflación de premium). NOTE: esto NO corrige AUDIT-LOG H2 (price_paid
+//! flota en el circuito → premium = price_paid - floor inflable); H2 requiere
+//! el fix del circuito T1 (commit price_paid en leaf_0). El check de contrato
+//! es necesario, no suficiente.
+//!
+//! VK: PLACEHOLDER hasta T3-final (ver [`vk`] / TODO(T3-final)). Requiere T1
+//! re-auditado ✅ (AUDIT-LOG H1/H2/H3); PLAN-DIA-2 §8.2.
 
 use soroban_sdk::{
     address_payload::AddressPayload,
@@ -71,6 +80,7 @@ const TTL_BUMP_EXTEND_TO: u32 = 10_000;
 const ADMIN: Symbol = symbol_short!("admin");
 const TOKEN: Symbol = symbol_short!("token");
 const ROOT: Symbol = symbol_short!("root");
+const FLOOR: Symbol = symbol_short!("floor");
 
 // ---------------------------------------------------------------------------
 // Contract
@@ -105,9 +115,27 @@ impl Terroir {
         storage.set(&ROOT, &r_cert);
     }
 
+    /// Set the floor price (cents, non-negative `i128`). Admin-only (Decisión H).
+    /// `claim_premium` exige `pub_signals[1] == floor_almacenado` (anti inflación
+    /// de premium). Must be called before any claim (panics otherwise).
+    pub fn set_floor(env: Env, admin: Address, floor_price: i128) {
+        admin.require_auth();
+        if floor_price < 0 {
+            panic!("terroir: floor negative");
+        }
+        let storage = env.storage().instance();
+        let stored: Address = storage
+            .get(&ADMIN)
+            .unwrap_or_else(|| panic!("terroir: not initialized"));
+        if admin != stored {
+            panic!("terroir: unauthorized");
+        }
+        storage.set(&FLOOR, &floor_price);
+    }
+
     /// Claim a premium. Verifies a Groth16 proof over the 7 public signals
-    /// (Decisión A order), enforces root + nullifier + payout binding, then
-    /// transfers `premium_amount` SEP-41 from this contract to `payout`.
+    /// (Decisión A order), enforces root + floor + nullifier + payout binding,
+    /// then transfers `premium_amount` SEP-41 from this contract to `payout`.
     ///
     /// Order (Decisión I): checks → effects → interaction (transfer last).
     pub fn claim_premium(env: Env, proof: Proof, pub_signals: Vec<Fr>, payout: Address) {
@@ -116,7 +144,7 @@ impl Terroir {
             panic!("terroir: expected 7 public signals");
         }
         let r_cert_sig = pub_signals.get(0).unwrap();
-        let _floor_price = pub_signals.get(1).unwrap();
+        let floor_sig = pub_signals.get(1).unwrap();
         let lot_commit_sig = pub_signals.get(2).unwrap();
         let premium_sig = pub_signals.get(3).unwrap();
         let payout_hi_sig = pub_signals.get(4).unwrap();
@@ -130,6 +158,20 @@ impl Terroir {
             .unwrap_or_else(|| panic!("terroir: certifier root not set"));
         if r_cert_sig.to_bytes() != root {
             panic!("terroir: root mismatch");
+        }
+
+        // (1b) floor binding: pub_signals[1] == stored floor_price (Decisión A).
+        // Pins the floor the prover claims to the admin's published value.
+        // NOTE: NO corrige AUDIT-LOG H2 (price_paid flota en el circuito →
+        // premium = price_paid - floor sigue inflable); H2 necesita el fix T1
+        // (commit price_paid en leaf_0). Check de contrato: necesario, no
+        // suficiente.
+        let stored_floor: i128 = instance
+            .get(&FLOOR)
+            .unwrap_or_else(|| panic!("terroir: floor not set"));
+        match fr_to_nonneg_i128(&floor_sig) {
+            Some(v) if v == stored_floor => {}
+            _ => panic!("terroir: floor mismatch"),
         }
 
         // amount > 0 (Decisión A: premium_amount = pub_signals[3], i128 cents).
@@ -230,15 +272,23 @@ fn groth16_verify(env: &Env, vk: &VerificationKey, proof: &Proof, pub_signals: &
 }
 
 /// Wrapper called by [`Terroir::claim_premium`]. Under `cfg(test)` the real
-/// pairing check is bypassed so the non-crypto logic (root / nullifier /
-/// payout / transfer / lot) is exercisable with a placeholder VK; the crypto
+/// pairing check is bypassed so the non-crypto logic (root / floor / nullifier
+/// / payout / transfer / lot) is exercisable with a placeholder VK; the crypto
 /// path is covered by the `#[ignore]` `test_groth16_with_real_vk` test. The
 /// bypass is absent from the wasm build (`cfg(not(test))`).
+///
+/// TODO(T3-final): ELIMINAR el bypass `#[cfg(test)]` de abajo para que el
+/// build wasm y el de tests compartan el MISMO path de pairing real. Requiere
+/// T1 re-auditado ✅ (AUDIT-LOG H1/H2/H3) y la VK real horneada en [`vk`].
+/// En ese momento el happy-path / doble-cobro cambian a prueba+pub_signals
+/// reales (serializa circuits/proof.json + public.json); bad-root / floor-
+/// mismatch / amount-zero siguen pasando porque sus checks disparan ANTES de
+/// esta fn (orden checks → ... → crypto). No cambiar el orden de señales
+/// (Decisión A).
 fn verify(env: &Env, proof: &Proof, pub_signals: &Vec<Fr>) -> bool {
     #[cfg(test)]
     {
-        // TODO(T1): placeholder VK — real BN254 verification is deferred until
-        // the 3-link circuit's verification_key.json is baked into vk().
+        // TODO(T3-final): borrar este bypass; rutear a groth16_verify(vk()).
         let _ = (env, proof, pub_signals);
         true
     }
@@ -249,11 +299,12 @@ fn verify(env: &Env, proof: &Proof, pub_signals: &Vec<Fr>) -> bool {
     }
 }
 
-// TODO(T1): pegar verification_key.json del circuito de 3 eslabones
-// (serializado con circuits/serialize.js, swap G2 c1‖c0). El placeholder de
-// abajo usa puntos BN254 válidos del fixture del spike (a*b=c) con `ic`
-// padded a 8 entradas (== nPublic+1 para 7 señales, Decisión A). NO verifica
-// ninguna prueba real del circuito de 3 eslabones.
+// TODO(T3-final): pegar verification_key.json del circuito de 3 eslabones
+// (serializado con circuits/serialize.js, swap G2 c1‖c0) reemplazando los
+// VK_*_PLACEHOLDER de abajo. Requiere T1 re-auditado ✅ (AUDIT-LOG H1/H2/H3);
+// PLAN-DIA-2 §8.2. El placeholder usa puntos BN254 válidos del fixture del
+// spike (a*b=c) con `ic` padded a 8 entradas (== nPublic+1 para 7 señales,
+// Decisión A). NO verifica ninguna prueba real del circuito de 3 eslabones.
 fn vk(env: &Env) -> VerificationKey {
     let mut ic = Vec::new(env);
     ic.push_back(g1(env, VK_IC0_PLACEHOLDER));
@@ -276,6 +327,16 @@ fn vk(env: &Env) -> VerificationKey {
 // ---------------------------------------------------------------------------
 // Payout binding helpers (Decisión E)
 // ---------------------------------------------------------------------------
+
+/// Fr → non-negative `i128`. Returns `None` if the value doesn't fit (>= 2^127)
+/// — used to compare a public signal (floor) to a stored `i128`.
+fn fr_to_nonneg_i128(fr: &Fr) -> Option<i128> {
+    let u = fr.as_u256().to_u128()?;
+    if u > i128::MAX as u128 {
+        return None;
+    }
+    Some(u as i128)
+}
 
 /// Extract the 32-byte payload of an [`Address`] (Ed25519 pubkey for G...,
 /// contract hash for C...). Requires the `hazmat-address` SDK feature.
@@ -338,8 +399,9 @@ fn g2(env: &Env, s: &'static str) -> Bn254G2Affine {
     Bn254G2Affine::from_array(env, &decode_hex::<128>(s))
 }
 
-// Placeholder BN254 points (spike fixture, a*b=c). TODO(T1): replace with the
-// real 3-link circuit VK serialized via circuits/serialize.js (swap G2 c1‖c0).
+// Placeholder BN254 points (spike fixture, a*b=c). TODO(T3-final): replace
+// with the real 3-link circuit VK serialized via circuits/serialize.js (swap
+// G2 c1‖c0). Requiere T1 re-auditado ✅.
 const VK_ALPHA_PLACEHOLDER: &str = "2c804bdc1f03bb45b8cf602491bf04a7ff878b58464fadd4eda4064b2f27bf82286437a0d09cfe3e7e4c74ed9ef5a6ef2a0b2cdfc82b95dda7ba365bd5f60d7e";
 const VK_BETA_PLACEHOLDER: &str = "2aaafb97938f9bb81436a827a0cb7ce39035c54689dc18aacaecdade7b1c524e228333fbb43ddbbfaf3c313fc4b4943d58fe587d7301157caaf4a60d0c2bc8b929087a74d646d971bfba7bcc64ae77f3ad7be5945ea533f1c9ebbb940b23785f0cfbcd57bb05e7fecedd62cf13288bddeaca4e872ad81b9a21d07dc3560021bf";
 const VK_GAMMA_PLACEHOLDER: &str = "198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa";
