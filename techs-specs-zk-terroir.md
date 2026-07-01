@@ -3,6 +3,14 @@
 **Rol:** Senior Blockchain Engineer (ZK + Stellar) · **Fecha:** 2026-06-26 · **Para:** de-riskear el build de 3 días
 **Mandato:** ninguna tecnología en el camino crítico puede estar sin lanzar, incompleta o ser impracticable. Cada pieza lleva estado real (mainnet/probado) + fallback.
 
+> **⚠️ ERRATA (2026-07-01):** las secciones §0.2, §3.2, §3.3, §4 describen firmas de certificadora con
+> **EdDSA-BabyJubjub-Poseidon**. Ese enfoque fue **reemplazado** por **membership de Merkle** (D-002,
+> `docs/DECISIONS.md`): el circuito no verifica firmas EdDSA in-circuit; prueba *membership* de cada
+> atestación en la raíz Merkle del certificador (más barato y ya implementado en
+> `circuits/terroir_chain.circom`). Lo demás del doc (Poseidon solo in-circuit, BN254 nativo como
+> showcase, serialización G2 `c1‖c0`) **sigue vigente** y fue validado en el spike/Día 2. Estado real:
+> `README.md`, `docs/AUDIT-LOG.md`, `docs/PLAN-DIA-3.md`.
+
 ---
 
 ## 0. Veredicto de viabilidad (TL;DR)

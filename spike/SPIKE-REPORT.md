@@ -1,5 +1,9 @@
 # Día 1 — Reporte del spike letal (BN254 Groth16 on-chain)
 
+> **📌 Registro histórico (Día 1).** El patrón BN254 validado aquí se compuso en el contrato real
+> (`contracts/terroir/`, circuito de 3 eslabones). Estado actual del proyecto y próximos pasos:
+> `README.md`, `docs/PLAN-DIA-3.md`, `docs/AUDIT-LOG.md`. Decisión de curva: `docs/DECISIONS.md` D-001.
+
 **Fecha:** 2026-06-26 · **Estado: ✅ PASA. El riesgo que hundía el proyecto está muerto.**
 
 Objetivo (del plan): forkear el verificador, generar una prueba dummy con snarkjs,

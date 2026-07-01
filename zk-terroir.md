@@ -1,7 +1,17 @@
 # ZK-Terroir — Procedencia justa demostrable sin revelar tu cadena de suministro
 
 **Proyecto en profundidad** · Modelo: Opus 4.8 · Fecha: 2026-06-26 · Deadline: 2026-06-29 12:00 PST (~3 días)
-**Stack:** Circom/Groth16 · proving en navegador (snarkjs WASM) · Poseidon **circomlib in-circuit** · EdDSA-BabyJubjub · `pairing_check`+MSM BN254 nativo (P25/P26) · SEP-41 (USDC/EURC) · Soroban
+**Stack:** Circom/Groth16 · proving en navegador (snarkjs WASM) · Poseidon **circomlib in-circuit** · ~~EdDSA-BabyJubjub~~ **membership Merkle (D-002)** · `pairing_check`+MSM BN254 nativo (P25/P26) · SEP-41 (USDC/EURC) · Soroban
+
+> **⚠️ ERRATA / ESTADO (2026-07-01) — leer antes que el resto.** Este es el **spec original**; dos
+> puntos fueron **superados por decisiones posteriores** (`docs/DECISIONS.md`):
+> - **Curva = BN254** (no BLS12-381) — confirmado y verificado on-chain (**D-001**).
+> - **Modelo de confianza = membership de Merkle (circomlib/Poseidon), NO EdDSA-BabyJubjub** (**D-002**).
+>   Toda mención de "EdDSA-BabyJubjub" / firmas de certificadora abajo (§3.1, §3.2, §7) está
+>   **reemplazada** por: cada certificador publica una **raíz Merkle** de atestaciones y el circuito
+>   prueba *membership* por eslabón. El circuito real vigente es `circuits/terroir_chain.circom`
+>   (3 eslabones, auditado sound — ver `docs/AUDIT-LOG.md`).
+> - Estado de implementación real: ver `README.md` y `docs/PLAN-DIA-3.md`.
 **Una frase que gana:** *"Pruebo que mi café es fair-trade en cada eslabón y le pago el premium a la cooperativa en segundos — sin revelar un solo proveedor."*
 
 ---

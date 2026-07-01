@@ -1,5 +1,15 @@
 # Plan Día 2 — Cadena de 3 eslabones + `claim_premium` paga USDC
 
+> **📌 ESTADO (2026-07-01):** T1 v3 (circuito sound), T2, T3 esqueleto+floor y T5 → **✅ auditados y
+> commiteados** (`be996a2`). **T3-final** (VK horneada + bypass `cfg(test)` fuera + tests real-proof +
+> E2E en Testnet) está **HECHO en el working tree pero SIN COMMITEAR**; su **auditoría de cierre
+> (GPT-5.5) + commit** es la **Ola 0 de `docs/PLAN-DIA-3.md`**. Detalle de estado real ahí.
+>
+> **📌 ROUTING (reconciliación):** este plan asignó **GLM-5.2** como cerebro (T1/T3), válido cuando se
+> escribió. Desde `docs/internal/model-routing.md`, **GLM-5.2 y Qwen 3.7 Max están retirados por costo**
+> (y **Kimi K2.7 Code vetado** desde 2026-07-01). **De aquí en adelante el cerebro de contrato/circuito
+> es DeepSeek V4 Pro** (escala a Gemini 3.1 Pro High). El Día 2 ya ejecutado NO se re-hace.
+
 **Esquema de trabajo:** Claude (este agente) **planifica y audita**; los **agentes de OpenCode
 implementan**. Cada tarea trae: modelo asignado (ver `docs/internal/models-bench.md`), prompt
 listo para pegar, criterios de aceptación, y la **compuerta de auditoría** que aplico antes de dar

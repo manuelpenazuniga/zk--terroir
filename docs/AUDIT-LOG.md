@@ -155,3 +155,25 @@ Reproducido: build wasm 9673 B, 5 funciones, `cargo test` → 10 pasan + 1 ignor
 - **Desbloqueado: T3-final** (§8.2) — hornear VK de T1 v3, **quitar bypass `cfg(test)`**, deploy,
   + T5 re-mint al contrato + trustline del payout, y **E2E en testnet** (hito Definition of Done §1).
 - Cleanups menores (no bloqueantes): 2 comentarios desactualizados (circuito :135, contrato :165) → T7/docs.
+
+---
+
+# Ronda 4 — T3-final · **⏳ PENDIENTE DE AUDITORÍA DE CIERRE (no confundir con PASA)**
+
+**Situación (2026-07-01):** el T3-final está **implementado en el working tree pero SIN COMMITEAR**
+(último commit sigue siendo `be996a2`). Reproducción mecánica preliminar de lo observado (aún **no**
+es el veredicto del panel):
+- `contracts/terroir/src/lib.rs`: VK real horneada (`VK_ALPHA…VK_IC7`), `verify()` (~274) llama al
+  `groth16_verify` real **sin** bypass `#[cfg(test)]` (comentario y código coinciden), floor binding
+  presente, CEI intacto.
+- `contracts/terroir/src/test.rs`: suite con **prueba real** (`test_happy_path_real`,
+  `test_double_spend_real`, `test_bad_root_real`, `test_bad_floor_real`, `test_amount_zero_real`,
+  `bad_proof`, `payout_binding`) — snapshots `*_real.1.json` nuevos en el working tree.
+- `deployments/testnet.json`: contrato `CBHFN7QU…TJQQ`, `e2e.happy_path=pass`, `replay_blocked=pass`,
+  `tampered_proof_blocked=pass`, `lot_status_registered=1782661915`, tx registradas.
+
+**⚠️ Gate faltante = Ola 0 de `docs/PLAN-DIA-3.md`:** falta el **pase adversarial de cierre**
+(triple: Gemini 3.1 Pro High + **GPT-5.5** + checklist) sobre este diff antes del commit. El brief está
+en `docs/briefs/ola0-close-dia2.md`. **No** se declara Día 2 cerrado hasta que el panel converja en
+`VEREDICTO: PASA` y se haga `git commit` + `git tag dia2-cerrado`. Cualquier hallazgo ALTA de fondos
+(drenaje / doble-cobro / redirigir premium / bypass de root-floor-nullifier) → STOP → usuario.
