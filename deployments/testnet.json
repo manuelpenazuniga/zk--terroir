@@ -1,10 +1,31 @@
 {
   "network": "testnet",
-  "updated_at": "2026-06-26T23:39:12Z",
+  "updated_at": "2026-06-28T15:48:31Z",
   "addresses": {
     "tusdc_issuer": "GAKMZTTT53DPPFQUJWJ7EIRDY34YSUB63BY7T2OU7O4PYFE7OLDCJJ5J",
     "tusdc_asset": "TUSDC:GAKMZTTT53DPPFQUJWJ7EIRDY34YSUB63BY7T2OU7O4PYFE7OLDCJJ5J",
-    "tusdc_sac": "CAQJK77DNRWP4XI5G3PKXEJRGLHKNUGCIF5HJEBSLLMS3V6PEKSAW6P6"
+    "tusdc_sac": "CAQJK77DNRWP4XI5G3PKXEJRGLHKNUGCIF5HJEBSLLMS3V6PEKSAW6P6",
+    "terroir_contract": "CBHFN7QUJJMA2RXMPVNYCFSCVZDQSOSVIRNVHJKPYHTE4DNHWX5ATJQQ",
+    "admin": "GAKMZTTT53DPPFQUJWJ7EIRDY34YSUB63BY7T2OU7O4PYFE7OLDCJJ5J",
+    "payout": "GBSQXMKJTJPXVRYM2VJIAQN47F64ALVSDZ7MDLDZ53OCF64ZIYQVQTDL"
   },
-  "amounts": {}
+  "amounts": {
+    "tusdc_escrow_minted": 10000000,
+    "payout_received_test": 37500,
+    "escrow_final": 19962500
+  },
+  "wasm": {
+    "hash": "b48085ad813533c12024a50fe1f5758b512ec1433f81ad4913be65601cf18271",
+    "size_bytes": 10437
+  },
+  "e2e": {
+    "happy_path": "pass",
+    "replay_blocked": "pass",
+    "tampered_proof_blocked": "pass",
+    "lot_status_registered": 1782661915,
+    "tx_happy_path": "99e08f35cb4851bf43f2fb0e8bf9d709e5154f449040239de65e35f67af714b5",
+    "tx_init": "5776551fb799febcbb9dddd4f1256a0c494f6a95eceafd8a79988ef42c25a0a4",
+    "tx_set_root": "c14b95c950dde7db02ea46118e77810deea0486cb12cc15d8336ef12e552bb2b",
+    "tx_set_floor": "2df5bb968eed033747dff7ab81c5e1b5d79e109b28cbc20f12ed410a81d41917"
+  }
 }

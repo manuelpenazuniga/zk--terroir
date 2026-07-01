@@ -31,10 +31,12 @@ const P = (x) => x.toString();
   const price_paid     = 1_875_00n;   // 1875.00 USDC
   const premium_amount = price_paid - floor_price;           // 375.00 USDC (público)
 
-  // ----- payout hi/lo: 32-byte pubkey ed25519 partida en 2x16B (decoy de test) -----
+  // ----- payout hi/lo: 32-byte pubkey ed25519 partida en 2x16B -----
   // 16B = 128 bits -> encaja en BN254 <p.
+  // T3-final: PAYOUT_PUBKEY_HEX se inyecta por env (decoy por defecto para T1/T2).
   const pub32 = Buffer.from(
-    '3c0b8a02e3f16b9c4d7e5a3b0c0d6e1f4a2b3c4d5e6f7081920a3b4c5d6e7f81',  // 32 bytes (64 hex)
+    process.env.PAYOUT_PUBKEY_HEX ||
+      '3c0b8a02e3f16b9c4d7e5a3b0c0d6e1f4a2b3c4d5e6f7081920a3b4c5d6e7f81',
     'hex'
   );
   if (pub32.length !== 32) throw new Error('pubkey debe ser 32 bytes');

@@ -61,7 +61,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "bytes": "0000000000000000000000000000000000000000000000000000000000000042"
+                  "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
                 }
               ]
             }
@@ -83,7 +83,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "i128": "1000"
+                  "i128": "150000"
                 }
               ]
             }
@@ -173,7 +173,7 @@
                         "symbol": "floor"
                       },
                       "val": {
-                        "i128": "1000"
+                        "i128": "150000"
                       }
                     },
                     {
@@ -181,7 +181,7 @@
                         "symbol": "root"
                       },
                       "val": {
-                        "bytes": "0000000000000000000000000000000000000000000000000000000000000042"
+                        "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
                       }
                     },
                     {

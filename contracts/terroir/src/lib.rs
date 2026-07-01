@@ -1,28 +1,23 @@
 #![no_std]
-//! ZK-Terroir `terroir` contract — Soroban skeleton (T3-esqueleto, PLAN-DIA-2 §8.1).
+//! ZK-Terroir `terroir` contract — Soroban (T3-final, PLAN-DIA-2 §8.2).
 //!
 //! Reuses the Groth16/BN254 verification pattern proven in the Day-1 spike
 //! (`spike/contract/src/lib.rs`): `env.crypto().bn254()` host functions
-//! (`g1_mul`, `g1_add`, `pairing_check`). The verifying key is a PLACEHOLDER
-//! until T1 bakes the real `verification_key.json` of the 3-link circuit
-//! (see [`vk`] / TODO(T1)).
+//! (`g1_mul`, `g1_add`, `pairing_check`). The verifying key is BAKED from the
+//! T1-v3 circuit of 3 eslabones (AUDIT-LOG ronda 3 PASA), serialized via
+//! `circuits/serialize.js` (swap G2 c1||c0, EIP-197 layout).
 //!
 //! Public-signal order is FROZEN by Decisión A (PLAN-DIA-2 §2):
 //! `[r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo,
-//! nullifier_hash]` (7 signals → VK.ic.len() == 8). Do NOT reorder.
+//! nullifier_hash]` (7 signals -> VK.ic.len() == 8). Do NOT reorder.
 //!
 //! Storage (Decisión H): `admin`/`token`/`certifier_root`/`floor_price` in
 //! instance storage; `nullifiers`/`lots` as persistent entries with TTL bump.
-//! Order (Decisión I): checks → effects → interaction (SEP-41 transfer last).
+//! Order (Decisión I): checks -> effects -> interaction (SEP-41 transfer last).
 //!
 //! Floor binding: `claim_premium` exige `pub_signals[1] == floor_almacenado`
-//! (anti inflación de premium). NOTE: esto NO corrige AUDIT-LOG H2 (price_paid
-//! flota en el circuito → premium = price_paid - floor inflable); H2 requiere
-//! el fix del circuito T1 (commit price_paid en leaf_0). El check de contrato
-//! es necesario, no suficiente.
-//!
-//! VK: PLACEHOLDER hasta T3-final (ver [`vk`] / TODO(T3-final)). Requiere T1
-//! re-auditado ✅ (AUDIT-LOG H1/H2/H3); PLAN-DIA-2 §8.2.
+//! (anti inflación de premium). Junto con T1 v3 (commit `price_paid` in
+//! `leaf_0`), `premium = price_paid - floor` queda con ambos extremos fijos.
 
 use soroban_sdk::{
     address_payload::AddressPayload,
@@ -137,7 +132,7 @@ impl Terroir {
     /// (Decisión A order), enforces root + floor + nullifier + payout binding,
     /// then transfers `premium_amount` SEP-41 from this contract to `payout`.
     ///
-    /// Order (Decisión I): checks → effects → interaction (transfer last).
+    /// Order (Decisión I): checks -> effects -> interaction (transfer last).
     pub fn claim_premium(env: Env, proof: Proof, pub_signals: Vec<Fr>, payout: Address) {
         // --- checks ---
         if pub_signals.len() != N_PUB {
@@ -162,10 +157,8 @@ impl Terroir {
 
         // (1b) floor binding: pub_signals[1] == stored floor_price (Decisión A).
         // Pins the floor the prover claims to the admin's published value.
-        // NOTE: NO corrige AUDIT-LOG H2 (price_paid flota en el circuito →
-        // premium = price_paid - floor sigue inflable); H2 necesita el fix T1
-        // (commit price_paid en leaf_0). Check de contrato: necesario, no
-        // suficiente.
+        // Combined with T1 v3 (commit price_paid en leaf_0), premium =
+        // price_paid - floor queda con ambos extremos fijados.
         let stored_floor: i128 = instance
             .get(&FLOOR)
             .unwrap_or_else(|| panic!("terroir: floor not set"));
@@ -196,7 +189,7 @@ impl Terroir {
             panic!("terroir: nullifier already used");
         }
 
-        // (3) Groth16 verification (BN254, reused from spike).
+        // (3) Groth16 verification (BN254, Decisión F, VK horneada en vk()).
         if !verify(&env, &proof, &pub_signals) {
             panic!("terroir: bad proof");
         }
@@ -242,9 +235,9 @@ impl Terroir {
 // Groth16 / BN254 verification (reused from spike/contract/src/lib.rs)
 // ---------------------------------------------------------------------------
 
-/// Real BN254 Groth16 pairing check. Always compiled (used by [`verify`] in
-/// the wasm build and by the `#[ignore]` crypto test). Returns `false` (never
-/// panics) when the proof or VK are malformed/wrong.
+/// Real BN254 Groth16 pairing check. Returns `false` (never panics) when the
+/// proof or VK are malformed/wrong — `claim_premium` translates that into
+/// `panic!("terroir: bad proof")`.
 fn groth16_verify(env: &Env, vk: &VerificationKey, proof: &Proof, pub_signals: &Vec<Fr>) -> bool {
     let bn = env.crypto().bn254();
 
@@ -271,55 +264,37 @@ fn groth16_verify(env: &Env, vk: &VerificationKey, proof: &Proof, pub_signals: &
     bn.pairing_check(vp1, vp2)
 }
 
-/// Wrapper called by [`Terroir::claim_premium`]. Under `cfg(test)` the real
-/// pairing check is bypassed so the non-crypto logic (root / floor / nullifier
-/// / payout / transfer / lot) is exercisable with a placeholder VK; the crypto
-/// path is covered by the `#[ignore]` `test_groth16_with_real_vk` test. The
-/// bypass is absent from the wasm build (`cfg(not(test))`).
-///
-/// TODO(T3-final): ELIMINAR el bypass `#[cfg(test)]` de abajo para que el
-/// build wasm y el de tests compartan el MISMO path de pairing real. Requiere
-/// T1 re-auditado ✅ (AUDIT-LOG H1/H2/H3) y la VK real horneada en [`vk`].
-/// En ese momento el happy-path / doble-cobro cambian a prueba+pub_signals
-/// reales (serializa circuits/proof.json + public.json); bad-root / floor-
-/// mismatch / amount-zero siguen pasando porque sus checks disparan ANTES de
-/// esta fn (orden checks → ... → crypto). No cambiar el orden de señales
-/// (Decisión A).
+/// Wrapper called by [`Terroir::claim_premium`]. Routes to the real BN254
+/// pairing check (Decisión F) with the T1-v3 verifying key baked into [`vk`].
+/// The same path runs in the wasm build and under `cargo test`, so the crypto
+/// is exercised by the happy-path / double-spend tests (no `#[cfg(test)]`
+/// bypass). Negative tests (bad-root / bad-floor / amount-zero) panic BEFORE
+/// this fn (order checks -> effects -> interaction). No cambiar el orden de
+/// señales (Decisión A).
 fn verify(env: &Env, proof: &Proof, pub_signals: &Vec<Fr>) -> bool {
-    #[cfg(test)]
-    {
-        // TODO(T3-final): borrar este bypass; rutear a groth16_verify(vk()).
-        let _ = (env, proof, pub_signals);
-        true
-    }
-    #[cfg(not(test))]
-    {
-        let vk = vk(env);
-        groth16_verify(env, &vk, proof, pub_signals)
-    }
+    let vk = vk(env);
+    groth16_verify(env, &vk, proof, pub_signals)
 }
 
-// TODO(T3-final): pegar verification_key.json del circuito de 3 eslabones
-// (serializado con circuits/serialize.js, swap G2 c1‖c0) reemplazando los
-// VK_*_PLACEHOLDER de abajo. Requiere T1 re-auditado ✅ (AUDIT-LOG H1/H2/H3);
-// PLAN-DIA-2 §8.2. El placeholder usa puntos BN254 válidos del fixture del
-// spike (a*b=c) con `ic` padded a 8 entradas (== nPublic+1 para 7 señales,
-// Decisión A). NO verifica ninguna prueba real del circuito de 3 eslabones.
+// VK real del circuito de 3 eslabones T1 v3 (AUDIT-LOG ronda 3 PASA). Seriada
+// con circuits/serialize.js: G1 = be32(x)||be32(y), G2 = Fp2(x)||Fp2(y) con
+// Fp2(c) = be32(c1)||be32(c0) (swap c1||c0, EIP-197 layout). 7 publicos ->
+// ic.len() == 8 (Decision A). NO verificar pruebas de otro circuito.
 fn vk(env: &Env) -> VerificationKey {
     let mut ic = Vec::new(env);
-    ic.push_back(g1(env, VK_IC0_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
-    ic.push_back(g1(env, VK_IC1_PLACEHOLDER));
+    ic.push_back(g1(env, VK_IC0));
+    ic.push_back(g1(env, VK_IC1));
+    ic.push_back(g1(env, VK_IC2));
+    ic.push_back(g1(env, VK_IC3));
+    ic.push_back(g1(env, VK_IC4));
+    ic.push_back(g1(env, VK_IC5));
+    ic.push_back(g1(env, VK_IC6));
+    ic.push_back(g1(env, VK_IC7));
     VerificationKey {
-        alpha: g1(env, VK_ALPHA_PLACEHOLDER),
-        beta: g2(env, VK_BETA_PLACEHOLDER),
-        gamma: g2(env, VK_GAMMA_PLACEHOLDER),
-        delta: g2(env, VK_DELTA_PLACEHOLDER),
+        alpha: g1(env, VK_ALPHA),
+        beta: g2(env, VK_BETA),
+        gamma: g2(env, VK_GAMMA),
+        delta: g2(env, VK_DELTA),
         ic,
     }
 }
@@ -328,7 +303,7 @@ fn vk(env: &Env) -> VerificationKey {
 // Payout binding helpers (Decisión E)
 // ---------------------------------------------------------------------------
 
-/// Fr → non-negative `i128`. Returns `None` if the value doesn't fit (>= 2^127)
+/// Fr -> non-negative `i128`. Returns `None` if the value doesn't fit (>= 2^127)
 /// — used to compare a public signal (floor) to a stored `i128`.
 fn fr_to_nonneg_i128(fr: &Fr) -> Option<i128> {
     let u = fr.as_u256().to_u128()?;
@@ -374,7 +349,7 @@ fn check_payout_binding(hi: &Fr, lo: &Fr, addr: &BytesN<32>) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Hex → BN254 point helpers (used by the placeholder VK)
+// Hex -> BN254 point helpers (used by the baked VK)
 // ---------------------------------------------------------------------------
 
 fn decode_hex<const N: usize>(s: &str) -> [u8; N] {
@@ -399,15 +374,20 @@ fn g2(env: &Env, s: &'static str) -> Bn254G2Affine {
     Bn254G2Affine::from_array(env, &decode_hex::<128>(s))
 }
 
-// Placeholder BN254 points (spike fixture, a*b=c). TODO(T3-final): replace
-// with the real 3-link circuit VK serialized via circuits/serialize.js (swap
-// G2 c1‖c0). Requiere T1 re-auditado ✅.
-const VK_ALPHA_PLACEHOLDER: &str = "2c804bdc1f03bb45b8cf602491bf04a7ff878b58464fadd4eda4064b2f27bf82286437a0d09cfe3e7e4c74ed9ef5a6ef2a0b2cdfc82b95dda7ba365bd5f60d7e";
-const VK_BETA_PLACEHOLDER: &str = "2aaafb97938f9bb81436a827a0cb7ce39035c54689dc18aacaecdade7b1c524e228333fbb43ddbbfaf3c313fc4b4943d58fe587d7301157caaf4a60d0c2bc8b929087a74d646d971bfba7bcc64ae77f3ad7be5945ea533f1c9ebbb940b23785f0cfbcd57bb05e7fecedd62cf13288bddeaca4e872ad81b9a21d07dc3560021bf";
-const VK_GAMMA_PLACEHOLDER: &str = "198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa";
-const VK_DELTA_PLACEHOLDER: &str = "253eaaa423bd5f4590da530addfb4225ae5bb0d0a2f116081b3e941bc6afb43b080c3cb99362aa593bc01d7e96f2eeccc72d561705f9651c074a889c9589d9411040924a2916c683bf03c0a0f96b3e1e0f88f4536ec11b306bb2b65d42255dde2b608cf090e8ec7a295720bb79af4647c2e907539a50d02d1f843a252fe1efeb";
-const VK_IC0_PLACEHOLDER: &str = "1bb12b2426f29bf906ddcb4451d5bf52aa1dd417aa95d796b961df5521f39a77168e2625b0034e271b6d0f5bcb33d57347d85ee994ae57f80019d16b6a30ec81";
-const VK_IC1_PLACEHOLDER: &str = "2b5cec58446f697970fd3e14e072e2d5e5ae8f6229ba70a992de6be81e75611c18ec7edebbe1ac0fde6014dfb09573833390be9bc6dd9b52ffc2d283bd0bf63d";
+// Real BN254 VK constants (T1 v3, AUDIT-LOG ronda 3). Seriada con circuits/serialize.js
+// (swap G2 c1||c0). NO usar para verificar pruebas de otro circuito.
+const VK_ALPHA: &str = "248b8d2929640612c3b091a78b17dfc38ce1d4358795877d626f35da1faf8595001c2c2220b4ecf84dcc8042ef164440d365603f33a649443c702d1f7057c68e";
+const VK_BETA: &str = "011399a20df3c97093bc93467f6581613b20a58448d73c3cf4e5638aedefc3e72787d2b7bd128d028c95101d1075b55d8230cbb276955bbaf6c8839c1509d20d117dc9d86bdaa7d828c17425c6a23b9c9c0dfba5545643fc6156dda893e0238e2568facb06c95104e9f41619a6366ba58a30221379dea7377ace03f0b2262f46";
+const VK_GAMMA: &str = "198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa";
+const VK_DELTA: &str = "1d3610d3db69c45b5e39540c87b5ebc5e2188d97d5563ac64dfa4dee16cec7f903d29f89df9783fdb40170840bf71855a76054131eae468e86a1476838964be406415899a6a09d79cecc0bf968684d1df0cac738405f0e9d892c7f819d0efc7826db11cb6793227677311dbd59afd18d43a51be134e4f01111641dbf9695c575";
+const VK_IC0: &str = "07cfa6cef5bf51f96427e7a2b5308a5e10ea334c3e0d63ef4cc80fb4f2e212690378817634aa2ac56b1eaceac3ba874f613aaa84f9f414e7fc47b1d5c8578e53";
+const VK_IC1: &str = "1f17dd91c21f61cf5b1384dd2c70b52f0ca0d4b4c057c2a70d612f1e3352fc8e14629756ed967152d85ba4bf4168b033ed21797a7378fdd3a811dafb785ce830";
+const VK_IC2: &str = "18f15004380580ef0dd0686d118ba6d8e52cf8beef0d84673d3fc42b573099ac09fcb19bb831fb9441d12763976e070bf3399e312e1137325c64649548660054";
+const VK_IC3: &str = "29e71e38963469dab4cef5fd36e30b1e17fe3aa041b72a51bbc82123e60233c414a3f579c02a86a8f9289a45390bb8d9ad096ff86c31b8a48a98b3a80e416b27";
+const VK_IC4: &str = "2683a539c43bc55b83983877866f3bf441fcc9cb2e9905b31229b7a6bb77d5e116e69ff8e1a844d944a5cc9cc715c375ca918b1019b523f16e9933268419afb2";
+const VK_IC5: &str = "14432416a8f651f9c1ee8a1eabecd486c8ff2d99550c98dfba5f0c5ee664b0381d6d5e617fea7b2c307c0ab0207e7e738158ce605c4d6c94749afad3186f7e68";
+const VK_IC6: &str = "01f5a307fe208e81b31157c431039db1e0ffc94523f12bafa189b83c65d5b77b2c8084ca8885cd85030d5bebec8be22f882a38e95c64b0a53924d9ea9b019d0e";
+const VK_IC7: &str = "256b5a4271cc3edeeebc172fe87f6d64ab2ee568d30f0b16ae32edbbfe599cad12f4602a18d9b602a2689e3bd052429bb2aa10510cd33c68953a2ba4a3a829e9";
 
 #[cfg(test)]
 mod test;

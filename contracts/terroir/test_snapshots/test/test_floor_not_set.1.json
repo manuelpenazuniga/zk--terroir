@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 4,
+    "address": 3,
     "nonce": 0,
     "mux_id": 0
   },
@@ -61,7 +61,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "bytes": "0000000000000000000000000000000000000000000000000000000000000042"
+                  "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
                 }
               ]
             }
@@ -151,7 +151,7 @@
                         "symbol": "root"
                       },
                       "val": {
-                        "bytes": "0000000000000000000000000000000000000000000000000000000000000042"
+                        "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
                       }
                     },
                     {
