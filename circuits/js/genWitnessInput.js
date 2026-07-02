@@ -68,14 +68,22 @@ const RCERT_JSON   = path.join(__dirname, 'r_cert.json');
   const payout_hi = BigInt('0x' + pub32.slice(0, 16).toString('hex'));
   const payout_lo = BigInt('0x' + pub32.slice(16, 32).toString('hex'));
 
-  // ---------------- 3 certifiers + leaves (forma EXACTA del circuito) ----------------
+  // ---------------- constantes de rol (Ola 3, no-cero) ----------------
+  const ROLE_FINCA = 1n;
+  const ROLE_COOP = 2n;
+  const ROLE_TOSTADOR = 3n;
+
+  // ---------------- 3 certifiers + leaves (forma EXACTA del circuito, Ola 3 role-tag) ----------------
   const certifier_pk = (FIX && FIX.certifier_pk) ? FIX.certifier_pk.map(BigInt) : [11n, 22n, 33n];
   const attest_data  = (FIX && FIX.attest_data)  ? FIX.attest_data.map(BigInt)  : [101n, 202n];
 
+  // slot 0 = COOP: Poseidon(pk_0, ROLE_COOP, lot_id, season_id, price_paid, lot_secret)
+  // slot 1 = FINCA: Poseidon(pk_1, ROLE_FINCA, lot_id, attest_data_0)
+  // slot 2 = TOST: Poseidon(pk_2, ROLE_TOSTADOR, lot_id, attest_data_1)
   const leaves = [
-    pose([certifier_pk[0], lot_id, price_paid, lot_secret]),
-    pose([certifier_pk[1], lot_id, attest_data[0]]),
-    pose([certifier_pk[2], lot_id, attest_data[1]]),
+    pose([certifier_pk[0], ROLE_COOP, lot_id, season_id, price_paid, lot_secret]),
+    pose([certifier_pk[1], ROLE_FINCA, lot_id, attest_data[0]]),
+    pose([certifier_pk[2], ROLE_TOSTADOR, lot_id, attest_data[1]]),
   ];
 
   // ---------------- reconstruye el árbol bottom-up ----------------

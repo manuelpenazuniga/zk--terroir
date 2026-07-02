@@ -43,21 +43,22 @@ const P = (x) => x.toString();
   const payout_hi = BigInt('0x' + pub32.slice(0, 16).toString('hex'));  // 128 bits BE
   const payout_lo = BigInt('0x' + pub32.slice(16, 32).toString('hex'));
 
-  // ----- 3 certifiers + leaves del eslabón (post-auditoría v3) -----
-  // Decisión B post-audit v3:
-  //  - eslabón 0 (cooperativa): leaf_0 = Poseidon(pk_0, lot_id, season_id, price_paid, lot_secret)
-  //    -> fija lot_id, season_id, price_paid y lot_secret a una atestación acreditada
-  //    (mata doble-cobro: season_id libre permitía reciclar nullifier_hash variándolo).
-  //  - eslabones 1,2: leaf_i = Poseidon(pk_i, lot_id, attest_data_i)
-  //    -> todos atestan el MISMO lot_id (no hay hash-chain; cadena eliminada para MVP).
-  //  - check LOW: 3 pk distintos (certifier_pk[1]!=certifier_pk[2], etc.) — esto lo
-  //    garantiza el propio circuito; aquí basta con pasar valores diferentes.
+  // ----- 3 certifiers + leaves del eslabón (Ola 3 — role-tag) -----
+  // Ola 3: cada hoja incluye su constante de rol en la preimagen Poseidon.
+  //   ROLE_FINCA=1, ROLE_COOP=2, ROLE_TOSTADOR=3 (no-cero).
+  //   slot 0 = COOP:  leaf_0 = Poseidon(pk_0, ROLE_COOP, lot_id, season_id, price_paid, lot_secret)
+  //   slot 1 = FINCA: leaf_1 = Poseidon(pk_1, ROLE_FINCA, lot_id, attest_data_0)
+  //   slot 2 = TOST:  leaf_2 = Poseidon(pk_2, ROLE_TOSTADOR, lot_id, attest_data_1)
+  //   -> mismas aridades que el circuito: 6/4/4.
+  const ROLE_FINCA = 1n;
+  const ROLE_COOP = 2n;
+  const ROLE_TOSTADOR = 3n;
   const certifier_pk = [11n, 22n, 33n];
   const attest_data  = [101n, 202n]; // sólo 2 (eslabones 1 y 2)
   const leaves = [
-    pose([certifier_pk[0], lot_id, season_id, price_paid, lot_secret]),
-    pose([certifier_pk[1], lot_id, attest_data[0]]),
-    pose([certifier_pk[2], lot_id, attest_data[1]]),
+    pose([certifier_pk[0], ROLE_COOP, lot_id, season_id, price_paid, lot_secret]),
+    pose([certifier_pk[1], ROLE_FINCA, lot_id, attest_data[0]]),
+    pose([certifier_pk[2], ROLE_TOSTADOR, lot_id, attest_data[1]]),
   ];
 
   // ----- Merkle tree (Poseidon(2), BN254), filled with zeros -----

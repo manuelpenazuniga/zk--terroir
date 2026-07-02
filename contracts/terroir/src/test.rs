@@ -52,24 +52,25 @@ fn fr(env: &Env, s: &str) -> Fr {
 // Real proof / public signals (T1 v3, serialized.json) — payout = GBSQXMKJ…QTDL
 // ---------------------------------------------------------------------------
 
-// pubkey hex (32 bytes) of the payout account GBSQXMKJTJPXVRYM2VJIAQN47F64ALVSDZ7MDLDZ53OCF64ZIYQVQTDL
-const PAYOUT_PUBKEY_HEX: &str = "650bb1499a5f7ac70cd5528041bcf97dc02eb21e7ec1ac79eedc22fb99462158";
+// pubkey hex (32 bytes) of the payout account — default from gen_input.js fallback
+const PAYOUT_PUBKEY_HEX: &str = "3c0b8a02e3f16b9c4d7e5a3b0c0d6e1f4a2b3c4d5e6f7081920a3b4c5d6e7f81";
 
 // r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo, nullifier_hash
-const PUB_R_CERT: &str = "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a";
+// Ola 3 (role-tag) — regenerated from new circuit with leaf arities 6/4/4
+const PUB_R_CERT: &str = "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a787337dd17d";
 const PUB_FLOOR: i128 = 150_000; // 150000 cents = $1500.00
 const PUB_LOT_COMMIT: &str = "2ceda2ee11f38491b484858a98c200d48c97ce21fdf8e9217a62634de6da6563";
 const PUB_PREMIUM: i128 = 37_500; // 37500 cents = $375.00
-const PUB_PAYOUT_HI: &str = "00000000000000000000000000000000650bb1499a5f7ac70cd5528041bcf97d";
-const PUB_PAYOUT_LO: &str = "00000000000000000000000000000000c02eb21e7ec1ac79eedc22fb99462158";
+const PUB_PAYOUT_HI: &str = "000000000000000000000000000000003c0b8a02e3f16b9c4d7e5a3b0c0d6e1f";
+const PUB_PAYOUT_LO: &str = "000000000000000000000000000000004a2b3c4d5e6f7081920a3b4c5d6e7f81";
 const PUB_NULLIFIER: &str = "01bbfda831bc496413713c87eb1d43e38482e2f28f7d1e9f92a2e85a38d9e437";
 
 const PROOF_A: &str =
-    "29505d0417ccffbaca13e4efc30c80a0fa00cf86849a3e4fc95e36e4e23624a8274a35118a07508050c407dc6edbf04c925db068789d9ba403a976bd4cb1f0df";
+    "1fe37a1651770fcf861836437253d2509ffe95c3d829b3fc5eafe672a5ce2024190b4a54b3662755002a94575403f81daad5981c5a021f3fafef9f5901771e56";
 const PROOF_B: &str =
-    "2a40238e2e359227975df26515dafd6cb8b7507693c077bf72390953797b1215016049f086181f5ddce7b125c2f99436165fc54ca639c26c7ee5fb81b179656414b6626cb0b7d6814abb2564e01c69b323b367c898666c99e559a77c6027de7b1f2d54a3ffa0f9b3ca3dad4f1ed7982f9b56f76c74459e0ba97813c2f8ed317e";
+    "2f7d9b4c06a01dceebccb8a565d120956fc9b03d1ac8c55e27dd06dec0276bb315a7827c9847360b21abcaf48e97f840f810b3bc94eceafa82003928e37688ce1ce55463afc484e12779abad5a5e2b55310414d28076dfa371bfb36c6e9e52ad20d411cf12113a2c50148b282c312af2be1b09d0e325b72e53408968e22a0d95";
 const PROOF_C: &str =
-    "2439216f13b146ed3f51cb25e71f87cd4655712a383d8a31de4e441ae56ad07e05b4376c8d9a3bb1617993d5fa716c85276dc2e92b21820dea00a90f37b5b2ae";
+    "1eda501d6dc5c53291731413d69dd80fe765cd53272200ca2518555e104e5e070c22a95a4ec34f2c0ba1b0506f81a6dd32acd8757b244f64bc5e24cdc79bdd52";
 
 /// Build the canonical Vec<Fr> matching `circuits/public.json` (Decisión A).
 fn real_pub_signals(env: &Env) -> Vec<Fr> {
@@ -247,7 +248,7 @@ fn test_bad_root_real() {
     // fires BEFORE crypto / nullifier / floor / payout.
     let wrong_r_cert = fr(
         &st.env,
-        "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5b",
+        "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a787337dd17e",
     );
     let pub_signals = with_signal_replaced(&st.env, &real, 0, wrong_r_cert);
     let proof = real_proof(&st.env);

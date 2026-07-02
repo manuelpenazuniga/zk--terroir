@@ -43,6 +43,11 @@ try { FIX = require(path.join(__dirname, 'fixtures.js')); } catch (_) { /* no fi
   const lot_secret = (FIX && FIX.lot_secret != null) ? BigInt(FIX.lot_secret) : 9999999999999999000000000000000000n;
   const price_paid = (FIX && FIX.price_paid != null) ? BigInt(FIX.price_paid) : 1_875_00n;
 
+  // ---------------- constantes de rol (Ola 3, no-cero) ----------------
+  const ROLE_FINCA = 1n;
+  const ROLE_COOP = 2n;
+  const ROLE_TOSTADOR = 3n;
+
   // ---------------- 3 certificadores acreditados ----------------
   // En producción estas pks son ed25519 verificadas fuera de línea por la
   // autoridad que sella R_cert. Aquí usamos scalars para no ligar el set a
@@ -53,11 +58,14 @@ try { FIX = require(path.join(__dirname, 'fixtures.js')); } catch (_) { /* no fi
   if (certifier_pk.length !== 3) throw new Error('certifier_pk debe tener 3 entradas');
   if (attest_data.length  !== 2) throw new Error('attest_data debe tener 2 entradas (eslabones 1,2)');
 
-  // ---------------- hojas (forma EXACTA del circuito) ----------------
+  // ---------------- hojas (forma EXACTA del circuito, Ola 3 role-tag) ----------------
+  // slot 0 = COOP: Poseidon(pk_0, ROLE_COOP, lot_id, season_id, price_paid, lot_secret)
+  // slot 1 = FINCA: Poseidon(pk_1, ROLE_FINCA, lot_id, attest_data_0)
+  // slot 2 = TOST: Poseidon(pk_2, ROLE_TOSTADOR, lot_id, attest_data_1)
   const leaves = [
-    pose([certifier_pk[0], lot_id, price_paid, lot_secret]), // eslabón 0
-    pose([certifier_pk[1], lot_id, attest_data[0]]),        // eslabón 1
-    pose([certifier_pk[2], lot_id, attest_data[1]]),        // eslabón 2
+    pose([certifier_pk[0], ROLE_COOP, lot_id, season_id, price_paid, lot_secret]),
+    pose([certifier_pk[1], ROLE_FINCA, lot_id, attest_data[0]]),
+    pose([certifier_pk[2], ROLE_TOSTADOR, lot_id, attest_data[1]]),
   ];
 
   // ---------------- inserción en árbol prof.10, lleno con 0n ----------------
@@ -101,9 +109,9 @@ try { FIX = require(path.join(__dirname, 'fixtures.js')); } catch (_) { /* no fi
     levels: LEVELS,
     hash: 'Poseidon(BN254) — circomlibjs con constantes idénticas a circomlib',
     leafFormulas: [
-      'Poseidon(certifier_pk[0], lot_id, price_paid, lot_secret)',
-      'Poseidon(certifier_pk[1], lot_id, attest_data[0])',
-      'Poseidon(certifier_pk[2], lot_id, attest_data[1])',
+      'Poseidon(certifier_pk[0], ROLE_COOP, lot_id, season_id, price_paid, lot_secret)',
+      'Poseidon(certifier_pk[1], ROLE_FINCA, lot_id, attest_data[0])',
+      'Poseidon(certifier_pk[2], ROLE_TOSTADOR, lot_id, attest_data[1])',
     ],
     // metadata no sensible: índices de las 3 hojas; el árbol completo NO
     // expone las pks/attest_data (eso vive en el leafFormulas público).

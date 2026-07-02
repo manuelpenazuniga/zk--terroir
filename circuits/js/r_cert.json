@@ -1,16 +1,16 @@
 {
-  "r_cert": "10148290009066212359156929291112542515335866393865463298929756215899883615317",
+  "r_cert": "975646771672022315473887566531216271187435207093346729074489866782278275453",
   "levels": 10,
   "hash": "Poseidon(BN254) — circomlibjs con constantes idénticas a circomlib",
   "leafFormulas": [
-    "Poseidon(certifier_pk[0], lot_id, price_paid, lot_secret)",
-    "Poseidon(certifier_pk[1], lot_id, attest_data[0])",
-    "Poseidon(certifier_pk[2], lot_id, attest_data[1])"
+    "Poseidon(certifier_pk[0], ROLE_COOP, lot_id, season_id, price_paid, lot_secret)",
+    "Poseidon(certifier_pk[1], ROLE_FINCA, lot_id, attest_data[0])",
+    "Poseidon(certifier_pk[2], ROLE_TOSTADOR, lot_id, attest_data[1])"
   ],
   "leafIndexes": [
     0,
     1,
     2
   ],
-  "generatedAt": "2026-06-27T21:05:12.443Z"
+  "generatedAt": "2026-07-02T23:22:26.171Z"
 }

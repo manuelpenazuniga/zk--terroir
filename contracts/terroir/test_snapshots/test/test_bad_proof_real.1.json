@@ -61,7 +61,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
+                  "bytes": "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a787337dd17d"
                 }
               ]
             }
@@ -181,7 +181,7 @@
                         "symbol": "root"
                       },
                       "val": {
-                        "bytes": "28714846a51e2f9f0a1264b374618283303c9c0873db3ef9850d9efe6c1d0f5a"
+                        "bytes": "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a787337dd17d"
                       }
                     },
                     {

@@ -51,7 +51,7 @@ template MerkleInclusion(levels) {
 // Decisión B (post-auditoría v3):
 //   Eslabón 0 — cooperativa — fija lot_id, season_id, price_paid y lot_secret a una
 //   atestación acreditada:
-//     leaf_0 = Poseidon(certifier_pk_0, lot_id, season_id, price_paid, lot_secret) in R_cert
+//     leaf_0 = Poseidon(certifier_pk_0, season_id, price_paid, lot_secret) in R_cert
 //   Esto mata el double-cobro residual: season_id ya NO es libre (la atestación lo fija),
 //   y como nullifier_hash = Poseidon(lot_secret, season_id) está constreñido por la misma
 //   season_id de leaf_0, variar season_id rompe la membership en R_cert -> no hay segundo
@@ -71,7 +71,15 @@ template MerkleInclusion(levels) {
 // Decisión E: payout_hi/payout_lo públicos ligados (anti-malleability + rango 128 bits).
 // Decisión A: orden público EXACTO
 //   [r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo, nullifier_hash]
+// Ola 3 (role-tag): cada leaf_i incluye su constante de rol en la preimagen Poseidon.
+//   ROLE_FINCA=1, ROLE_COOP=2, ROLE_TOSTADOR=3. Slot 0=COOP, slot 1=FINCA, slot 2=TOSTADOR.
+//   Arities: leaf_0=Poseidon(6), leaf_1/leaf_2=Poseidon(4).
 template TerroirChain(levels) {
+
+    // --- constantes de rol (Ola 3, no-cero para evitar ambigüedad) ---
+    var ROLE_FINCA = 1;
+    var ROLE_COOP = 2;
+    var ROLE_TOSTADOR = 3;
 
     // --- inputs públicos (Decisión A, orden congelado) ---
     signal input r_cert;
@@ -159,18 +167,17 @@ template TerroirChain(levels) {
     signal l2;
     l2 <== payout_lo * payout_lo;
 
-    // ----- Decisión B (post-auditoría v3): 3 memberships en R_cert -----
-    // Eslabón 0 (cooperativa): leaf_0 = Poseidon(certifier_pk_0, lot_id, season_id,
-    //   price_paid, lot_secret) -> fija lot_id, season_id, price_paid y lot_secret a una
-    //   atestación acreditada (no hay libertad para variar season_id y reciclar nullifier_hash).
-    // Eslabones 1,2: leaf_i = Poseidon(certifier_pk_i, lot_id, attest_data_i)
-    //   -> todos atestan el MISMO lot_id, sin cadena.
-    component leafH0 = Poseidon(5);
+    // ----- Ola 3 (role-tag): 3 memberships en R_cert con rol comprometido -----
+    // slot 0 = COOP: leaf_0 = Poseidon(certifier_pk_0, ROLE_COOP, lot_id, season_id, price_paid, lot_secret)
+    // slot 1 = FINCA: leaf_1 = Poseidon(certifier_pk_1, ROLE_FINCA, lot_id, attest_data_0)
+    // slot 2 = TOSTADOR: leaf_2 = Poseidon(certifier_pk_2, ROLE_TOSTADOR, lot_id, attest_data_1)
+    component leafH0 = Poseidon(6);
     leafH0.inputs[0] <== certifier_pk[0];
-    leafH0.inputs[1] <== lot_id;
-    leafH0.inputs[2] <== season_id;
-    leafH0.inputs[3] <== price_paid;
-    leafH0.inputs[4] <== lot_secret;
+    leafH0.inputs[1] <== ROLE_COOP;
+    leafH0.inputs[2] <== lot_id;
+    leafH0.inputs[3] <== season_id;
+    leafH0.inputs[4] <== price_paid;
+    leafH0.inputs[5] <== lot_secret;
 
     component inc0 = MerkleInclusion(levels);
     inc0.leaf <== leafH0.out;
@@ -182,19 +189,33 @@ template TerroirChain(levels) {
 
     component leafH[2];
     component inc[2];
-    for (var i = 0; i < 2; i++) {
-        leafH[i] = Poseidon(3);
-        leafH[i].inputs[0] <== certifier_pk[i + 1];
-        leafH[i].inputs[1] <== lot_id;
-        leafH[i].inputs[2] <== attest_data[i];
 
-        inc[i] = MerkleInclusion(levels);
-        inc[i].leaf <== leafH[i].out;
-        inc[i].root <== r_cert;
-        for (var j = 0; j < levels; j++) {
-            inc[i].pathElements[j] <== pathElements[i + 1][j];
-            inc[i].pathIndices[j] <== pathIndices[i + 1][j];
-        }
+    // slot 1 = FINCA
+    leafH[0] = Poseidon(4);
+    leafH[0].inputs[0] <== certifier_pk[1];
+    leafH[0].inputs[1] <== ROLE_FINCA;
+    leafH[0].inputs[2] <== lot_id;
+    leafH[0].inputs[3] <== attest_data[0];
+    inc[0] = MerkleInclusion(levels);
+    inc[0].leaf <== leafH[0].out;
+    inc[0].root <== r_cert;
+    for (var j = 0; j < levels; j++) {
+        inc[0].pathElements[j] <== pathElements[1][j];
+        inc[0].pathIndices[j] <== pathIndices[1][j];
+    }
+
+    // slot 2 = TOSTADOR
+    leafH[1] = Poseidon(4);
+    leafH[1].inputs[0] <== certifier_pk[2];
+    leafH[1].inputs[1] <== ROLE_TOSTADOR;
+    leafH[1].inputs[2] <== lot_id;
+    leafH[1].inputs[3] <== attest_data[1];
+    inc[1] = MerkleInclusion(levels);
+    inc[1].leaf <== leafH[1].out;
+    inc[1].root <== r_cert;
+    for (var j = 0; j < levels; j++) {
+        inc[1].pathElements[j] <== pathElements[2][j];
+        inc[1].pathIndices[j] <== pathIndices[2][j];
     }
 }
 

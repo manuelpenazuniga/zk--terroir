@@ -4,7 +4,7 @@
 //! Reuses the Groth16/BN254 verification pattern proven in the Day-1 spike
 //! (`spike/contract/src/lib.rs`): `env.crypto().bn254()` host functions
 //! (`g1_mul`, `g1_add`, `pairing_check`). The verifying key is BAKED from the
-//! T1-v3 circuit of 3 eslabones (AUDIT-LOG ronda 3 PASA), serialized via
+//! T1 Ola-3 circuit (role-tag, leaf arities 6/4/4), serialized via
 //! `circuits/serialize.js` (swap G2 c1||c0, EIP-197 layout).
 //!
 //! Public-signal order is FROZEN by Decisión A (PLAN-DIA-2 §2):
@@ -276,8 +276,8 @@ fn verify(env: &Env, proof: &Proof, pub_signals: &Vec<Fr>) -> bool {
     groth16_verify(env, &vk, proof, pub_signals)
 }
 
-// VK real del circuito de 3 eslabones T1 v3 (AUDIT-LOG ronda 3 PASA). Seriada
-// con circuits/serialize.js: G1 = be32(x)||be32(y), G2 = Fp2(x)||Fp2(y) con
+// VK real del circuito de 3 eslabones T1 Ola-3 (role-tag, arities 6/4/4).
+// Seriada con circuits/serialize.js: G1 = be32(x)||be32(y), G2 = Fp2(x)||Fp2(y) con
 // Fp2(c) = be32(c1)||be32(c0) (swap c1||c0, EIP-197 layout). 7 publicos ->
 // ic.len() == 8 (Decision A). NO verificar pruebas de otro circuito.
 fn vk(env: &Env) -> VerificationKey {
@@ -376,18 +376,18 @@ fn g2(env: &Env, s: &'static str) -> Bn254G2Affine {
 
 // Real BN254 VK constants (T1 v3, AUDIT-LOG ronda 3). Seriada con circuits/serialize.js
 // (swap G2 c1||c0). NO usar para verificar pruebas de otro circuito.
-const VK_ALPHA: &str = "248b8d2929640612c3b091a78b17dfc38ce1d4358795877d626f35da1faf8595001c2c2220b4ecf84dcc8042ef164440d365603f33a649443c702d1f7057c68e";
-const VK_BETA: &str = "011399a20df3c97093bc93467f6581613b20a58448d73c3cf4e5638aedefc3e72787d2b7bd128d028c95101d1075b55d8230cbb276955bbaf6c8839c1509d20d117dc9d86bdaa7d828c17425c6a23b9c9c0dfba5545643fc6156dda893e0238e2568facb06c95104e9f41619a6366ba58a30221379dea7377ace03f0b2262f46";
+const VK_ALPHA: &str = "193e978355902a37d6b53c749ee3351de95b4571abdc17b6598def4c2b6a57521f6d1a99ab84b0078125bc915e0b23139038efdb6ca4dccf8971a30b7d8441ef";
+const VK_BETA: &str = "20f9f7a46018afe66c61e6f4dd1cc236b4da78465215314f0fff48ea367cb3111e200b8c2eca779d47f9b4b2b6d7ce0484d111f63fe0be2837c5a27acc3980f718a666e3fd6a4ae72f952334867030de80a13cbd7d1c115d02a8b35800b1d4b802df6bebf6b6f2286f769b65b7cf4be442c1e2c4a7584e60ad864fedc3e2cafd";
 const VK_GAMMA: &str = "198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa";
-const VK_DELTA: &str = "1d3610d3db69c45b5e39540c87b5ebc5e2188d97d5563ac64dfa4dee16cec7f903d29f89df9783fdb40170840bf71855a76054131eae468e86a1476838964be406415899a6a09d79cecc0bf968684d1df0cac738405f0e9d892c7f819d0efc7826db11cb6793227677311dbd59afd18d43a51be134e4f01111641dbf9695c575";
-const VK_IC0: &str = "07cfa6cef5bf51f96427e7a2b5308a5e10ea334c3e0d63ef4cc80fb4f2e212690378817634aa2ac56b1eaceac3ba874f613aaa84f9f414e7fc47b1d5c8578e53";
-const VK_IC1: &str = "1f17dd91c21f61cf5b1384dd2c70b52f0ca0d4b4c057c2a70d612f1e3352fc8e14629756ed967152d85ba4bf4168b033ed21797a7378fdd3a811dafb785ce830";
-const VK_IC2: &str = "18f15004380580ef0dd0686d118ba6d8e52cf8beef0d84673d3fc42b573099ac09fcb19bb831fb9441d12763976e070bf3399e312e1137325c64649548660054";
-const VK_IC3: &str = "29e71e38963469dab4cef5fd36e30b1e17fe3aa041b72a51bbc82123e60233c414a3f579c02a86a8f9289a45390bb8d9ad096ff86c31b8a48a98b3a80e416b27";
-const VK_IC4: &str = "2683a539c43bc55b83983877866f3bf441fcc9cb2e9905b31229b7a6bb77d5e116e69ff8e1a844d944a5cc9cc715c375ca918b1019b523f16e9933268419afb2";
-const VK_IC5: &str = "14432416a8f651f9c1ee8a1eabecd486c8ff2d99550c98dfba5f0c5ee664b0381d6d5e617fea7b2c307c0ab0207e7e738158ce605c4d6c94749afad3186f7e68";
-const VK_IC6: &str = "01f5a307fe208e81b31157c431039db1e0ffc94523f12bafa189b83c65d5b77b2c8084ca8885cd85030d5bebec8be22f882a38e95c64b0a53924d9ea9b019d0e";
-const VK_IC7: &str = "256b5a4271cc3edeeebc172fe87f6d64ab2ee568d30f0b16ae32edbbfe599cad12f4602a18d9b602a2689e3bd052429bb2aa10510cd33c68953a2ba4a3a829e9";
+const VK_DELTA: &str = "154791695080a837d78f44d44afaf84a48b0a8824e102bfed445a56b9f65e7430bba3f42d8ff6bdd5ca332aa0d8e6c2783d2213cae6485b769335120f58aa88f15d5e155ab498e0046a042fc80316ae745162b3855e6345d2a694787e15173861aeb7d149bb73a51d10a0b4e731822b20ad62f83490afce78c3d8903406095a9";
+const VK_IC0: &str = "13187a7614d9256a081720cde2ba4bab8764cfd6f2da4e66818c777c175832162cda01c57a320f8986ba5f07cf4a7039d3a8111d1cee42e27519dd12a3a58eb7";
+const VK_IC1: &str = "10c0863be4c6f642a2e7ee05ba1d4ce7fb2f74549715bd3431f9a47e7d51283e25c483ea1378dfbe2fa17098dddc649ae099943fb5b8c519d13d2b85268db449";
+const VK_IC2: &str = "09b6c7c934d6369d06afb601afd0d84c8d6305d02ae8fdc7cc1299240eebb84d0fcec2d890bed4b49232f558056e011d48f2c1b7d1e68a471f38fa1f602a6ae6";
+const VK_IC3: &str = "1be8e7857739be2d891e6c70fbd29eb06b678d01890027d854b3dac7c212d61a2ef4a2259b012f6c05f7cdbd19ffbbc84f1261ac2fabc99664ea060661d248fc";
+const VK_IC4: &str = "226c29ff7d6b0e3ad91cf2831a4f66b0f1714a684421ed9b4e1f96470c9d8d0e07f84edd3a17f0c96f32b29f354077c1883301a55201b31895a5bc9f6ef2d457";
+const VK_IC5: &str = "051d498c8a26b8af4ededf0e777b74279dc2666c4632e3624f0f5a0c0d52bc2b19504112eb975bf5c5cf13dc391cd67ab66ba77b6a75e787fdf5e7378277975e";
+const VK_IC6: &str = "03fe5da4a3ce238445b6d0a438824047a34c51ecc9e1cebb7fc6851c0f58bf2700806969079320408b40e46266f501da6297cbc489f513e0b0d754204f47968f";
+const VK_IC7: &str = "2a8e89363fd9975763a66e30b3a8aed3a89419e99eb2ef66cdc01f15256a0c771413c601f514b6025c96a4ac87362d7292143bbb82a8098fceea013f80bdb337";
 
 #[cfg(test)]
 mod test;
