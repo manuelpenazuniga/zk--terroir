@@ -129,11 +129,11 @@ template TerroirChain(levels) {
     ge.in[1] <== floor_price;
     ge.out === 1;
 
-    // ----- Check LOW (audit): certificador 1 != certificador 2 -----
-    // Garantiza 3 entidades distintas detrás de los eslabones 1 y 2 (no bastan 2 firms
-    // simuladas por el mismo pk para simular multi-atestación). Es la IsEqual negada.
-    // Sobre certifier_pk[0] no se chequea vs [1]/[2]: la cooperativa del eslabón 0 es
-    // típicamente la contra-parte del certificador de cadena — ese binding es de rol, off-chain.
+    // ----- Check LOW (audit): los 3 certificadores son distintos entre sí -----
+    // Garantiza 3 entidades distintas detrás de los eslabones (no basta reusar el mismo
+    // pk para simular multi-atestación). Son 3 IsEqual negadas y se chequean los tres
+    // pares explícitamente abajo: pk1≠pk2, pk0≠pk1 y pk0≠pk2 (incluye a la cooperativa
+    // del eslabón 0 vs los certificadores de cadena).
     component neq12 = IsEqual();
     neq12.in[0] <== certifier_pk[1];
     neq12.in[1] <== certifier_pk[2];

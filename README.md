@@ -44,6 +44,7 @@ consulta ese endpoint de solo-lectura (ver `verify/`).
 | Anti doble-cobro (nullifier persistente) y anti-inflación (floor pineado) | ✅ **REAL**, auditado |
 | Emisor de atestaciones (certificadoras) | 🟡 **MOCK honesto**: en producción, un oráculo reempaqueta PKI real (X.509/PGP) en credenciales; hoy el emisor es simulado |
 | Token USDC | 🟡 **TUSDC de test** (SAC en Testnet), no USDC de mainnet |
+| Alcance del demo | 🟡 **1 sola cooperativa / 1 lote** end-to-end; multi-coop y multi-región es trabajo futuro |
 | Orden de custodia finca→coop→tostador | 🟡 **stretch**: hoy se prueba que 3 certificadores distintos atestan el mismo lote; el orden estricto es Día 3 stretch |
 
 **El "guiño de tecnología nueva de Stellar" es BN254 + MSM nativos (P25 22-ene-2026, P26 6-may-2026)**,
@@ -59,7 +60,7 @@ circuits/         circuito Circom (terroir_chain.circom) + setup snarkjs + infra
 contracts/terroir Soroban (soroban-sdk 25.1.0): claim_premium, set_certifier_root, set_floor, lot_status
 scripts/          setup_token.sh (TUSDC SAC), deploy.sh
 deployments/      testnet.json (direcciones + tx del E2E)
-verify/           verificador público de solo-lectura (QR / lot_status)   [Día 3]
+verify/           verificador público de solo-lectura (QR / lot_status) — bash + stellar CLI, sin claves de escritura
 spike/            spike Día 1: verificación BN254 genérica on-chain (base validada)
 docs/             plan, decisiones, audit-log, internal/ (routing y orquestación multiagente)
 ```
