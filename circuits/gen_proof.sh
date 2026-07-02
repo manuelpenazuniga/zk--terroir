@@ -6,6 +6,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export PATH="$HOME/.cargo/bin:$PATH"
 
+snarkjs() {
+  npx snarkjs "$@"
+}
+
 CIRC=terroir_chain
 PTAU_BITS=15
 
