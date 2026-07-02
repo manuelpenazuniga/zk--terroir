@@ -1,7 +1,3 @@
-# === Internal / no-public docs (estrategia, routing de modelos, brainstorming) ===
-docs/brainstorming/
-docs/internal/
-
 # === Build artifacts pesados (regenerables) ===
 **/node_modules/
 **/target/
