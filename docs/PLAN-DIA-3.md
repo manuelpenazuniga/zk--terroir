@@ -27,6 +27,20 @@
 > **Implicación:** el hito Definition-of-Done del Día 2 (§1 de `PLAN-DIA-2.md`) **parece cumplido**,
 > pero **no está cerrado**: falta el pase adversarial de cierre y el commit. Ese es el gate de la Ola 0.
 
+### 0.1 Progreso de ejecución (actualizado 2026-07-01)
+
+| Ola | Estado | Resultado |
+|---|---|---|
+| **Ola 0** — cerrar Día 2 (GATE) | ✅ **CERRADA** | Triple audit PASA (checklist-Claude + agy/Gemini 3.1 Pro High + codex/GPT-5.5*); VK recomputada byte-a-byte por los 3; `cargo test` 11/11. Commit `505dc49`, tag **`dia2-cerrado`**. |
+| **Ola 1** — T3D-verify ∥ T7-docs | ✅ **HECHA** | `verify/` (verificador read-only `lot_status`+QR, smoke-test Testnet OK) + README refinado + comentario stale del circom corregido. |
+| **Ola 2** — audit dual + merge | ✅ **CERRADA** | Dual PASA (checklist-Claude + agy/Gemini 9/9). Mergeadas a `main` (`879a20c`). |
+| **Ola 3** — stretch (endurecer custodia) | ⏳ **diseño/brief** | Toca circuito sound → gate humano. Brief en `docs/briefs/ola3-harden-custody.md`. |
+
+\* codex emitió `NO-PASA` **solo** por no poder correr `cargo test` en su sandbox read-only (falso
+negativo de entorno, no del código); 10/11 OK + VK recomputada. Efectivo-PASA aprobado por usuario.
+
+**DoD Día 3 (§1) puntos 1–3: ✅ cumplidos.** Punto 4 (stretch) = Ola 3, opcional y con aprobación.
+
 ---
 
 ## 1. Meta del Día 3 (Definition of Done)
