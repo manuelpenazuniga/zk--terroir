@@ -284,5 +284,10 @@ tocar el circuito sound (misma regla de gate que fue la Ola 3). No bloquea Olas 
 | **T4.2** 3er leg + h2/l2 | ⏸️ **DIFERIDO (por diseño)** | T4.2a codex = pospuesto (cuota); gate efectivo dual (Claude+Gemini) ya cumplido en Ola 3. T4.2b h2/l2 = se limpia en el re-spin de Ola 7 (no re-hornear VK solo por cosmética). |
 | **T4.3** README honesto | ✅ **HECHA** | MSM precisa (`g1_mul`/`g1_add` loop), trusted-setup de juguete, `npm ci`+`npx snarkjs`; quita "hash-chain" stale, role-tag = REAL, orden temporal = Ola 7. `cargo build` verde. |
 | **T4.4** git push | ✅ **HECHA** | Barrido de secretos OK (solo direcciones públicas); `git push origin main --tags`. |
+| **Ola 5a** zkey+VK fresco + re-deploy | ✅ **HECHA** | La VK de Ola 3 quedó huérfana (setup no determinista + zkey gitignored perdido al borrar worktree). Zkey+VK nuevos del MISMO circuito (R1CS 3bfbf5b7 idéntico), **preservados en web/public/**. Contrato demo `CDECOLH6…`; E2E on-chain verde. VK==lib.rs byte-a-byte, cargo test 11/11. |
+| **Ola 5b** frontend proving browser (T5.1) | ✅ **HECHA** (tag `ola5-cerrada`) | `web/` estático: fullProve en Chrome real (~0.7s) → verify → serialize → claim cmd + QR. **E2E definitivo: prueba generada en el navegador → on-chain TRUE → pagó 37500.** Impl MiniMax M3; orquestador verificó + fixeó comando (objeto/decimal) + hardening. Gate dual PASA (Claude+Gemini). |
+
+**Pendiente Ola 5:** ninguno funcional. Sigue **Ola 6 (video)** — se puede grabar sobre este frontend
+con la automatización de Chrome. **Ola 7 (doble-membership ASP)** = gate humano (brief + toca fondos).
 </content>
 </invoke>
