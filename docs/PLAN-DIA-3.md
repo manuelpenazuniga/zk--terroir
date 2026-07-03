@@ -34,7 +34,7 @@
 | **Ola 0** — cerrar Día 2 (GATE) | ✅ **CERRADA** | Triple audit PASA (checklist-Claude + agy/Gemini 3.1 Pro High + codex/GPT-5.5*); VK recomputada byte-a-byte por los 3; `cargo test` 11/11. Commit `505dc49`, tag **`dia2-cerrado`**. |
 | **Ola 1** — T3D-verify ∥ T7-docs | ✅ **HECHA** | `verify/` (verificador read-only `lot_status`+QR, smoke-test Testnet OK) + README refinado + comentario stale del circom corregido. |
 | **Ola 2** — audit dual + merge | ✅ **CERRADA** | Dual PASA (checklist-Claude + agy/Gemini 9/9). Mergeadas a `main` (`879a20c`). |
-| **Ola 3** — stretch (endurecer custodia) | ⏳ **diseño/brief** | Toca circuito sound → gate humano. Brief en `docs/briefs/ola3-harden-custody.md`. |
+| **Ola 3** — stretch (endurecer custodia) | ✅ **CERRADA** (tag `ola3-cerrada`) | Role-tag {COOP/FINCA/TOSTADOR} como literal en cada hoja Poseidon (6/4/4); Decisión A intacta (`IC.len()==8`). Auditoría **dual PASA** (checklist-Claude + Gemini 3.1 Pro High) + **pase adversarial-Claude** (en lugar de codex, waiver del usuario por cuota → codex queda como follow-up). **E2E Testnet verde**: happy paga 37500 / replay bloqueado / tamper bloqueado (contract `CBHAL7G5…CM5W`). VK recomputada byte-a-byte. Commits `0685011`+`8306d3b`. |
 
 \* codex emitió `NO-PASA` **solo** por no poder correr `cargo test` en su sandbox read-only (falso
 negativo de entorno, no del código); 10/11 OK + VK recomputada. Efectivo-PASA aprobado por usuario.
