@@ -1,233 +1,480 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ZK-Terroir · Proving en tu navegador</title>
+  <meta name="description" content="ZK-Terroir — fair coffee provenance with zero-knowledge proofs, generated entirely in your browser and verified on Soroban." />
+  <title>ZK-Terroir — Zero-knowledge proving in your browser</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322C55E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 20h10'/%3E%3Cpath d='M10 20c5.5-2.5.8-6.4 3-10'/%3E%3Cpath d='M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z'/%3E%3Cpath d='M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z'/%3E%3C/svg%3E" />
   <style>
-    :root { color-scheme: dark; --ok:#4ade80; --err:#f87171; --warn:#fbbf24; --work:#9ad1ff;
-            --bg:#0f1211; --card:#161b19; --border:#24302a; --muted:#8fb39c; --accent:#1f7a4d; }
+    /* ---- Design tokens (semantic, dark developer-tool theme) ---- */
+    :root {
+      color-scheme: dark;
+      --bg:            #0C110F;
+      --surface:       #131A16;
+      --surface-inset: #0A0F0D;
+      --border:        #26332B;
+      --border-strong: #3A4C40;
+      --text:          #E9F1EB;
+      --text-muted:    #9DB8A6;
+      --text-faint:    #7A9484;
+      --accent:        #22C55E;
+      --accent-hover:  #34D673;
+      --accent-dim:    #16A34A;
+      --on-accent:     #052E16;
+      --ok:            #4ADE80;
+      --err:           #F87171;
+      --warn:          #FBBF24;
+      --work:          #93C5FD;
+      --link:          #8EC3FF;
+      --radius:        12px;
+      --radius-sm:     8px;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    }
     * { box-sizing: border-box; }
-    body { font-family: ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: #e8efe9;
-           max-width: 920px; margin: 0 auto; padding: 32px 20px 60px; line-height: 1.5; }
-    h1 { font-size: 1.5rem; margin: 0 0 4px; }
-    h2 { font-size: 1.05rem; margin: 24px 0 10px; color: #cfe2d6; }
-    .sub { color: var(--muted); margin: 0 0 24px; }
-    a { color: #8ec3ff; }
+    body {
+      font-family: var(--font-sans); background: var(--bg); color: var(--text);
+      max-width: 940px; margin: 0 auto; padding: 32px 20px 48px; line-height: 1.55;
+      font-size: 16px;
+    }
+    a { color: var(--link); }
+    code, .mono { font-family: var(--font-mono); font-size: 0.85em; }
 
-    button { background: var(--accent); color: #fff; border: 0; padding: 11px 20px; border-radius: 8px;
-             font-size: 0.95rem; cursor: pointer; font-weight: 500; }
-    button.secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    button:disabled { opacity: .5; cursor: default; }
-    button.copy { padding: 4px 10px; font-size: 0.78rem; background: transparent; color: var(--muted);
-                  border: 1px solid var(--border); border-radius: 6px; }
+    /* ---- Header ---- */
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between;
+                 gap: 16px; margin-bottom: 28px; }
+    .brand { display: flex; gap: 12px; align-items: flex-start; }
+    .brand-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+                  background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3);
+                  display: inline-flex; align-items: center; justify-content: center;
+                  color: var(--ok); }
+    h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; }
+    .tagline { color: var(--text-muted); margin: 2px 0 0; font-size: 0.95rem; max-width: 56ch; }
+    .net-badge { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.72rem;
+                 font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+                 color: var(--text-muted); border: 1px solid var(--border-strong);
+                 border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
 
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.78rem;
-             font-weight: 600; }
-    .badge.ok   { background: rgba(74, 222, 128, 0.15); color: var(--ok); border: 1px solid rgba(74,222,128,0.3); }
-    .badge.err  { background: rgba(248, 113, 113, 0.15); color: var(--err); border: 1px solid rgba(248,113,113,0.3); }
+    /* ---- Cards ---- */
+    .card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px 22px; margin-bottom: 18px; }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between;
+                 gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+    .card-head h2 { font-size: 1.02rem; margin: 0; display: inline-flex; align-items: center; gap: 8px; }
+    .card-head h2 svg { color: var(--text-faint); flex-shrink: 0; }
+    .card-sub { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 16px; }
 
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-            padding: 18px 20px; margin-bottom: 18px; }
-    .grid { display: grid; gap: 12px 18px; }
+    /* ---- Form ---- */
+    fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
+    fieldset:last-of-type { margin-bottom: 0; }
+    legend { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em;
+             text-transform: uppercase; color: var(--text-faint); margin-bottom: 10px; padding: 0; }
+    .grid { display: grid; gap: 14px 16px; }
     .grid.cols-2 { grid-template-columns: 1fr 1fr; }
     .grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-    @media (max-width: 640px) { .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; } }
-    label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 3px; }
-    input[type=text], input[type=number] { width: 100%; background: #0d1110; color: #e8efe9;
-                                            border: 1px solid var(--border); border-radius: 6px;
-                                            padding: 7px 10px; font-family: ui-monospace, monospace;
-                                            font-size: 0.85rem; }
-    input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--accent); }
+    .field { min-width: 0; }
+    .field label { display: block; font-size: 0.82rem; color: var(--text-muted);
+                   margin-bottom: 6px; font-weight: 500; }
+    .field input {
+      width: 100%; min-height: 42px; background: var(--surface-inset); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 9px 12px; font-family: var(--font-mono); font-size: 0.875rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .field input:hover { border-color: var(--border-strong); }
+    .field input:focus-visible {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.18);
+    }
+    .field input[aria-invalid="true"] { border-color: var(--err); }
+    .hint { font-size: 0.78rem; color: var(--text-faint); margin: 6px 0 0; }
+    .hint.err, .field-error { color: var(--err); }
+    .field-error { display: none; font-size: 0.78rem; margin: 6px 0 0; }
 
-    details { margin-top: 8px; }
-    details > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 6px 0; }
-    details > summary:hover { color: #cfe2d6; }
+    details { margin-top: 16px; }
+    details > summary { cursor: pointer; color: var(--text-muted); font-size: 0.85rem;
+                        padding: 8px 0; user-select: none; }
+    details > summary:hover { color: var(--text); }
     details[open] > summary { margin-bottom: 8px; }
 
-    #status { padding: 14px 16px; background: var(--card); border-radius: 8px;
-              border: 1px solid var(--border); white-space: pre-wrap;
-              font-family: ui-monospace, monospace; font-size: 0.82rem; min-height: 24px; }
-    .ok   { color: var(--ok); }
-    .err  { color: var(--err); }
-    .work { color: var(--work); }
+    /* ---- Buttons ---- */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+           min-height: 44px; padding: 0 22px; border-radius: var(--radius-sm);
+           border: 1px solid transparent; font-family: var(--font-sans);
+           font-weight: 600; font-size: 0.95rem; cursor: pointer;
+           transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease; }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: var(--on-accent); }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary { background: transparent; color: var(--text-muted);
+                     border-color: var(--border-strong); }
+    .btn-secondary:hover:not(:disabled) { color: var(--text); border-color: var(--text-faint); }
+    .btn-copy { min-height: 36px; padding: 0 12px; font-size: 0.78rem; font-weight: 500;
+                background: var(--surface); color: var(--text-muted);
+                border-color: var(--border-strong); gap: 6px; }
+    .btn-copy:hover { color: var(--text); border-color: var(--text-faint); }
+    .btn-copy.copied { color: var(--ok); border-color: rgba(74,222,128,0.5); }
 
-    .banner { display: none; padding: 10px 14px; border-radius: 8px; margin-top: 12px;
-              font-size: 0.88rem; border: 1px solid; }
-    .banner.warn { background: rgba(251,191,36,0.08); color: var(--warn); border-color: rgba(251,191,36,0.3); }
-    .banner.ok   { background: rgba(74,222,128,0.08); color: var(--ok); border-color: rgba(74,222,128,0.3); }
-
-    .spinner { display: none; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
-               border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
-               vertical-align: middle; margin-right: 6px; }
+    .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
+    .spinner { display: none; width: 15px; height: 15px; flex-shrink: 0;
+               border: 2px solid rgba(5,46,22,0.3); border-top-color: var(--on-accent);
+               border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .privacy { margin: 14px 0 0; font-size: 0.85rem; color: var(--muted); }
-    code, .mono { font-family: ui-monospace, monospace; font-size: 0.85rem; }
-    pre.code-block { background: #0d1110; border: 1px solid var(--border); border-radius: 8px;
-                     padding: 12px 14px; overflow-x: auto; white-space: pre; font-size: 0.78rem;
-                     color: #cfe2d6; margin: 0; max-height: 320px; }
-    .label-cap { display: block; font-size: 0.78rem; color: var(--muted); margin: 4px 0 4px;
-                 text-transform: uppercase; letter-spacing: 0.5px; }
-    .value-cap { font-family: ui-monospace, monospace; font-size: 0.82rem; word-break: break-all;
-                 color: #e8efe9; }
-    .small { font-size: 0.78rem; color: var(--muted); }
-    .row-btn { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
-    #qr { display: inline-block; background: #fff; padding: 6px; border-radius: 6px; }
-    #qr svg { display: block; }
+    .privacy { display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 0;
+               font-size: 0.85rem; color: var(--text-muted); }
+    .privacy svg { flex-shrink: 0; margin-top: 2px; color: var(--ok); }
+
+    /* ---- Pipeline stepper ---- */
+    .steps { list-style: none; display: flex; flex-wrap: wrap; align-items: center;
+             gap: 8px 0; padding: 0; margin: 14px 0 16px; }
+    .step { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+    .step:not(:last-child)::after { content: ""; flex: 1 1 12px; height: 1px;
+                                    background: var(--border); margin: 0 10px; }
+    .step-dot { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+                border: 1.5px solid var(--border-strong); color: var(--text-faint);
+                display: inline-flex; align-items: center; justify-content: center;
+                font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+                transition: border-color 0.2s ease, background-color 0.2s ease; }
+    .step-label { font-size: 0.8rem; color: var(--text-faint); white-space: nowrap; }
+    .step.active .step-dot { border-color: var(--accent); color: var(--ok);
+                             animation: pulse 1.2s ease-in-out infinite; }
+    .step.active .step-label { color: var(--text); font-weight: 600; }
+    .step.done .step-dot { background: rgba(34,197,94,0.14); border-color: var(--accent-dim);
+                           color: var(--ok); }
+    .step.done .step-label { color: var(--text-muted); }
+    .step.error .step-dot { background: rgba(248,113,113,0.12); border-color: var(--err);
+                            color: var(--err); }
+    .step.error .step-label { color: var(--err); font-weight: 600; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(34,197,94,0.15); } }
+
+    /* ---- Status log ---- */
+    .log { background: var(--surface-inset); border: 1px solid var(--border);
+           border-radius: var(--radius-sm); padding: 12px 14px; min-height: 46px;
+           max-height: 280px; overflow-y: auto;
+           font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.6; }
+    .log .line { white-space: pre-wrap; word-break: break-word; }
+    .log .line.ok   { color: var(--ok); }
+    .log .line.err  { color: var(--err); }
+    .log .line.work { color: var(--work); }
+    .log .line.dim  { color: var(--text-faint); }
+
+    .badge { display: inline-flex; align-items: center; padding: 4px 12px;
+             border-radius: 999px; font-size: 0.78rem; font-weight: 600; border: 1px solid; }
+    .badge:empty { display: none; }
+    .badge.ok  { background: rgba(74,222,128,0.12); color: var(--ok);  border-color: rgba(74,222,128,0.35); }
+    .badge.err { background: rgba(248,113,113,0.12); color: var(--err); border-color: rgba(248,113,113,0.35); }
+
+    .banner { display: none; padding: 12px 14px; border-radius: var(--radius-sm);
+              margin-top: 14px; font-size: 0.88rem; border: 1px solid; border-left-width: 3px; }
+    .banner.warn { background: rgba(251,191,36,0.07); color: var(--warn); border-color: rgba(251,191,36,0.35); }
+    .banner.ok   { background: rgba(74,222,128,0.07); color: var(--ok); border-color: rgba(74,222,128,0.35); }
+
+    /* ---- Results ---- */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 14px; padding: 14px 16px; background: var(--surface-inset);
+                border: 1px solid var(--border); border-radius: var(--radius-sm);
+                margin-bottom: 18px; }
+    .stat-label { display: block; font-size: 0.72rem; font-weight: 600;
+                  letter-spacing: 0.06em; text-transform: uppercase;
+                  color: var(--text-faint); margin-bottom: 4px; }
+    .stat-value { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700;
+                  font-variant-numeric: tabular-nums; }
+    .stat-value.accent { color: var(--ok); }
+    .stat-sub { display: block; margin-top: 2px; font-family: var(--font-mono);
+                font-size: 0.78rem; color: var(--text-faint); }
+
+    .sig-grid { gap: 16px; }
+    .sig-label { display: block; font-size: 0.72rem; font-weight: 600;
+                 letter-spacing: 0.06em; text-transform: uppercase;
+                 color: var(--text-faint); margin-bottom: 4px; }
+    .sig-value { font-family: var(--font-mono); font-size: 0.82rem; word-break: break-all;
+                 color: var(--text); }
+
+    .code-wrap { position: relative; }
+    .code-wrap .btn-copy { position: absolute; top: 8px; right: 8px; z-index: 1; }
+    .code-wrap pre.code-block { padding-right: 88px; }
+    pre.code-block { background: var(--surface-inset); border: 1px solid var(--border);
+                     border-radius: var(--radius-sm); padding: 14px 16px; overflow-x: auto;
+                     white-space: pre; font-family: var(--font-mono); font-size: 0.78rem;
+                     color: var(--text-muted); margin: 0; max-height: 320px; }
+
+    .qr-row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+    #qr { display: inline-block; background: #fff; padding: 8px; border-radius: var(--radius-sm); }
+    #qr svg { display: block; width: 160px; height: 160px; }
+    .qr-side { flex: 1; min-width: 260px; }
+
+    footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
+             font-size: 0.78rem; color: var(--text-faint); font-family: var(--font-mono); }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 700px) {
+      .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+      .page-head { flex-direction: column; }
+      /* 16px inputs prevent iOS Safari from auto-zooming on focus */
+      .field input { font-size: 16px; }
+      .steps { flex-direction: column; align-items: stretch; }
+      .step:not(:last-child)::after { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>🌱 ZK-Terroir</h1>
-  <p class="sub">Procedencia justa de café con zero-knowledge — la prueba se genera <b>en tu navegador</b>.</p>
-
-  <div class="card">
-    <h2 style="margin-top:0">Datos del lote (editables — los defaults matchean el demo on-chain)</h2>
-    <div class="grid cols-3">
+  <header class="page-head">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/>
+          <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/>
+          <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>
+        </svg>
+      </span>
       <div>
-        <label>Certifier COOP (eslabón 0)</label>
-        <input type="text" id="certifier_pk0" />
-      </div>
-      <div>
-        <label>Certifier FINCA (eslabón 1)</label>
-        <input type="text" id="certifier_pk1" />
-      </div>
-      <div>
-        <label>Certifier TOSTADOR (eslabón 2)</label>
-        <input type="text" id="certifier_pk2" />
-      </div>
-      <div>
-        <label>Attest data · FINCA</label>
-        <input type="text" id="attest_data0" />
-      </div>
-      <div>
-        <label>Attest data · TOSTADOR</label>
-        <input type="text" id="attest_data1" />
-      </div>
-      <div>
-        <label>Precio pagado (centavos USDC)</label>
-        <input type="text" id="price_paid" />
-      </div>
-      <div>
-        <label>Piso / floor (centavos USDC)</label>
-        <input type="text" id="floor_price" />
-      </div>
-      <div style="grid-column: span 2;">
-        <label>Payout pubkey (32B hex) — destino del premium</label>
-        <input type="text" id="payout_hex" />
+        <h1>ZK-Terroir</h1>
+        <p class="tagline">Fair coffee provenance with zero-knowledge — the proof is generated
+          <b>entirely in your browser</b>.</p>
       </div>
     </div>
+    <span class="net-badge">Soroban · Testnet</span>
+  </header>
 
-    <details>
-      <summary>Avanzado (lot_id, season_id, lot_secret — fijá solo si sabés lo que hacés)</summary>
-      <div class="grid cols-3" style="margin-top:8px">
-        <div>
-          <label>lot_id</label>
-          <input type="text" id="lot_id" />
+  <section class="card" aria-labelledby="form-title">
+    <div class="card-head">
+      <h2 id="form-title">Lot data</h2>
+    </div>
+    <p class="card-sub">Editable — the defaults reproduce the on-chain demo lot.</p>
+
+    <fieldset>
+      <legend>Supply-chain certifiers &amp; attestations</legend>
+      <div class="grid cols-3">
+        <div class="field">
+          <label for="certifier_pk0">Co-op certifier (link 0)</label>
+          <input type="text" id="certifier_pk0" inputmode="numeric" autocomplete="off" spellcheck="false" />
         </div>
-        <div>
-          <label>season_id</label>
-          <input type="text" id="season_id" />
+        <div class="field">
+          <label for="certifier_pk1">Farm certifier (link 1)</label>
+          <input type="text" id="certifier_pk1" inputmode="numeric" autocomplete="off" spellcheck="false" />
         </div>
-        <div>
-          <label>lot_secret</label>
-          <input type="text" id="lot_secret" />
+        <div class="field">
+          <label for="certifier_pk2">Roaster certifier (link 2)</label>
+          <input type="text" id="certifier_pk2" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="attest_data0">Farm attestation data</label>
+          <input type="text" id="attest_data0" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="attest_data1">Roaster attestation data</label>
+          <input type="text" id="attest_data1" inputmode="numeric" autocomplete="off" spellcheck="false" />
         </div>
       </div>
-      <p class="small" style="margin:6px 0 0">
-        Cambiar lot_secret o season_id invalida el set acreditado sembrado on-chain (r_cert = 975646…302554).
-        El proof se va a generar igual, pero el contrato lo va a rechazar.
+    </fieldset>
+
+    <fieldset>
+      <legend>Pricing</legend>
+      <div class="grid cols-2">
+        <div class="field">
+          <label for="price_paid">Price paid (USDC cents)</label>
+          <input type="text" id="price_paid" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="floor_price">Floor price (USDC cents)</label>
+          <input type="text" id="floor_price" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <p class="hint" id="premium-hint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Premium payout</legend>
+      <div class="field">
+        <label for="payout_hex">Payout public key (32-byte hex)</label>
+        <input type="text" id="payout_hex" autocomplete="off" spellcheck="false" aria-describedby="payout-help" />
+        <p class="hint" id="payout-help">Ed25519 public key that receives the premium.</p>
+        <p class="field-error" id="payout-err" role="alert">Must be exactly 64 hexadecimal characters (a 32-byte public key).</p>
+      </div>
+    </fieldset>
+
+    <details>
+      <summary>Advanced — lot identity (lot_id, season_id, lot_secret)</summary>
+      <div class="grid cols-3" style="margin-top:8px">
+        <div class="field">
+          <label for="lot_id">lot_id</label>
+          <input type="text" id="lot_id" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="season_id">season_id</label>
+          <input type="text" id="season_id" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="lot_secret">lot_secret</label>
+          <input type="text" id="lot_secret" inputmode="numeric" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        Changing <code>lot_secret</code> or <code>season_id</code> moves this lot outside the accredited
+        set seeded on-chain (r_cert = 975646…302554). The proof will still be generated, but the
+        contract will reject it.
       </p>
     </details>
 
-    <div class="row" style="margin-top:18px">
-      <button id="prove">Generar prueba (Groth16 · BN254)</button>
-      <button id="reset" class="secondary">Restaurar defaults</button>
-      <span id="spinner" class="spinner"></span>
+    <div class="actions">
+      <button id="prove" class="btn btn-primary">
+        <span id="spinner" class="spinner" aria-hidden="true"></span>
+        <span id="prove-label">Generate proof</span>
+      </button>
+      <button id="reset" class="btn btn-secondary">Reset to demo defaults</button>
+    </div>
+
+    <p class="privacy">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <span><b>Private by design:</b> the witness and the proof are computed locally with
+        <code>snarkjs.groth16.fullProve</code> — your inputs never leave this device.
+        The contract only ever sees the proof.</span>
+    </p>
+  </section>
+
+  <section class="card" aria-labelledby="pipeline-title">
+    <div class="card-head">
+      <h2 id="pipeline-title">Proving pipeline</h2>
       <span id="proof-badge" class="badge"></span>
     </div>
-    <p class="privacy">🔒 <b>Tus datos nunca salen de tu equipo:</b> el witness y la prueba se computan
-       localmente con <code>snarkjs.groth16.fullProve</code>. El contrato solo ve la prueba.</p>
-  </div>
-
-  <div id="status">Listo. Pulsá "Generar prueba" para correr el flujo completo (~1s en Chrome).</div>
-  <div id="banner" class="banner"></div>
+    <ol class="steps" id="steps">
+      <li class="step" data-step="setup"><span class="step-dot">1</span><span class="step-label">Poseidon init</span></li>
+      <li class="step" data-step="witness"><span class="step-dot">2</span><span class="step-label">Witness</span></li>
+      <li class="step" data-step="prove"><span class="step-dot">3</span><span class="step-label">Prove (Groth16)</span></li>
+      <li class="step" data-step="verify"><span class="step-dot">4</span><span class="step-label">Verify (VK)</span></li>
+      <li class="step" data-step="serialize"><span class="step-dot">5</span><span class="step-label">Encode (Soroban)</span></li>
+    </ol>
+    <div id="status" class="log" role="log" aria-live="polite"></div>
+    <div id="banner" class="banner" role="status"></div>
+  </section>
 
   <div id="section-result" style="display:none">
-    <div class="card">
-      <h2 style="margin-top:0">Señales públicas (Decisión A, orden congelado)</h2>
-      <div class="grid cols-2">
-        <div>
-          <span class="label-cap">r_cert (raíz de R_cert, pública)</span>
-          <span class="value-cap" id="out-r_cert"></span>
-        </div>
-        <div>
-          <span class="label-cap">lot_commit</span>
-          <span class="value-cap" id="out-lot_commit"></span>
-        </div>
-        <div>
-          <span class="label-cap">premium_amount</span>
-          <span class="value-cap">
-            <span id="out-premium"></span>
-            <span class="small"> · <span id="out-premium-cents"></span> centavos</span>
-          </span>
-        </div>
-        <div>
-          <span class="label-cap">floor_price</span>
-          <span class="value-cap" id="out-floor"></span>
-        </div>
-        <div>
-          <span class="label-cap">payout_hi · payout_lo</span>
-          <span class="value-cap">
-            <span id="out-payout-hi"></span> · <span id="out-payout-lo"></span>
-          </span>
-        </div>
-        <div>
-          <span class="label-cap">nullifier_hash</span>
-          <span class="value-cap" id="out-nullifier"></span>
-        </div>
+    <section class="card" aria-labelledby="signals-title">
+      <div class="card-head">
+        <h2 id="signals-title">Public signals</h2>
       </div>
-    </div>
+      <p class="card-sub">Decision A — frozen order; exactly what the Soroban contract verifies.</p>
 
-    <div class="card">
-      <h2 style="margin-top:0">Comando para enviar la tx de claim (Testnet)</h2>
-      <p class="small" style="margin:0 0 8px">
-        Contrato <code class="mono" id="contract-id"></code> · red <code class="mono" id="contract-network"></code>.
-        Reemplazá <code class="mono">&lt;YOUR_ID&gt;</code> y <code class="mono">&lt;G...PayoutPubkey&gt;</code> por tu
-        identidad Stellar (con USDC) y la pubkey G... del destinatario del premium.
-      </p>
-      <div class="row-btn">
-        <button class="copy" id="copy-cmd">copiar comando</button>
-      </div>
-      <pre class="code-block" id="cmd"></pre>
-      <details style="margin-top:10px">
-        <summary>Hex serializado (proof · pub_signals) — para auditoría</summary>
-        <div class="row-btn" style="margin-top:6px">
-          <button class="copy" id="copy-hex">copiar hex</button>
+      <div class="stat-row">
+        <div>
+          <span class="stat-label">premium_amount</span>
+          <span class="stat-value accent" id="out-premium"></span>
+          <span class="stat-sub"><span id="out-premium-cents"></span> cents</span>
         </div>
-        <pre class="code-block" id="cmd-hex"></pre>
+        <div>
+          <span class="stat-label">floor_price</span>
+          <span class="stat-value" id="out-floor"></span>
+        </div>
+      </div>
+
+      <div class="grid cols-2 sig-grid">
+        <div>
+          <span class="sig-label">r_cert — accredited-set root</span>
+          <span class="sig-value" id="out-r_cert"></span>
+        </div>
+        <div>
+          <span class="sig-label">lot_commit</span>
+          <span class="sig-value" id="out-lot_commit"></span>
+        </div>
+        <div>
+          <span class="sig-label">payout_hi · payout_lo</span>
+          <span class="sig-value"><span id="out-payout-hi"></span> · <span id="out-payout-lo"></span></span>
+        </div>
+        <div>
+          <span class="sig-label">nullifier_hash</span>
+          <span class="sig-value" id="out-nullifier"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="claim-title">
+      <div class="card-head">
+        <h2 id="claim-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>
+          </svg>
+          Claim the premium on-chain
+        </h2>
+      </div>
+      <p class="card-sub">
+        Contract <code class="mono" id="contract-id"></code> on <code class="mono" id="contract-network"></code>.
+        Replace <code class="mono">&lt;YOUR_ID&gt;</code> with your funded Stellar identity and
+        <code class="mono">&lt;G...PayoutPubkey&gt;</code> with the premium recipient's public key,
+        then run the command in your shell.
+      </p>
+      <div class="code-wrap">
+        <button class="btn btn-copy" id="copy-cmd" aria-label="Copy claim command">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+          </svg>
+          <span class="copy-text">Copy</span>
+        </button>
+        <pre class="code-block" id="cmd"></pre>
+      </div>
+      <details style="margin-top:12px">
+        <summary>Serialized hex (proof · pub_signals) — for audits</summary>
+        <div class="code-wrap" style="margin-top:6px">
+          <button class="btn btn-copy" id="copy-hex" aria-label="Copy serialized hex">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+            </svg>
+            <span class="copy-text">Copy</span>
+          </button>
+          <pre class="code-block" id="cmd-hex"></pre>
+        </div>
       </details>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2 style="margin-top:0">QR de verificación pública</h2>
-      <p class="small" style="margin:0 0 10px">
-        Un consumidor (auditor, comprador, prensa) puede escanear este QR y consultar
-        <code class="mono">lot_status</code> on-chain (read-only) para confirmar que este lote fue certificado
-        y su premium pagado.
+    <section class="card" aria-labelledby="qr-title">
+      <div class="card-head">
+        <h2 id="qr-title">Public verification QR</h2>
+      </div>
+      <p class="card-sub">
+        Anyone — an auditor, a buyer, the press — can scan this code and query
+        <code class="mono">lot_status</code> on-chain (read-only) to confirm this lot was
+        certified and its premium paid.
       </p>
-      <div class="row" style="align-items:flex-start">
-        <div id="qr"></div>
-        <div style="flex:1; min-width:260px">
-          <div class="row-btn">
-            <button class="copy" id="copy-qr-payload">copiar payload</button>
+      <div class="qr-row">
+        <div id="qr" role="img" aria-label="QR code with the public lot-verification payload"></div>
+        <div class="qr-side">
+          <div class="code-wrap">
+            <button class="btn btn-copy" id="copy-qr-payload" aria-label="Copy QR payload">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+              <span class="copy-text">Copy</span>
+            </button>
+            <pre class="code-block" id="qr-payload" style="font-size:0.74rem; max-height:160px; white-space:pre-wrap; word-break:break-all"></pre>
           </div>
-          <pre class="code-block" id="qr-payload" style="font-size:0.74rem; max-height:160px"></pre>
         </div>
       </div>
-    </div>
+    </section>
   </div>
+
+  <footer>ZK-Terroir demo · Groth16 over BN254 · proofs verified on Soroban testnet</footer>
 
   <script src="./public/vendor/circomlibjs-poseidon.min.js"></script>
   <script src="./public/vendor/qrcode.min.js"></script>

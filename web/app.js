@@ -17,13 +17,13 @@
 //   - Default values = los mismos de circuits/gen_input.js => r_cert == on-chain seed.
 //   - lot_secret/season_id/lot_id se exponen como "avanzado" (defaults fijos del demo).
 //   - Sin frameworks: vanilla JS, sin React/Vue.
+//   - UI en inglés; el pipeline se muestra como stepper de 5 pasos + log con aria-live.
 
 (function () {
   'use strict';
 
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
-  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
   // --- Config (constantes de Ola 3) ---
   const ROLE_FINCA    = 1n;
@@ -66,19 +66,33 @@
   let _network  = 'testnet';
 
   // ============================================================
-  // Status / log helpers
+  // Status log / stepper / feedback helpers
   // ============================================================
-  function setStatus(msg, cls) {
-    const s = $('status');
-    s.textContent = msg;
-    s.className = cls || '';
-    if (msg) console.log('[zkt]', msg.split('\n').pop());
+  const STEP_ORDER = ['setup', 'witness', 'prove', 'verify', 'serialize'];
+
+  function setStep(name, state) {
+    const el = document.querySelector('.step[data-step="' + name + '"]');
+    if (!el) return;
+    el.classList.remove('active', 'done', 'error');
+    if (state) el.classList.add(state);
+    const dot = el.querySelector('.step-dot');
+    dot.textContent = state === 'done' ? '✓' : state === 'error' ? '✕' : String(STEP_ORDER.indexOf(name) + 1);
+    if (state === 'active') el.setAttribute('aria-current', 'step');
+    else el.removeAttribute('aria-current');
   }
-  function appendStatus(msg) {
+  function resetSteps() { STEP_ORDER.forEach((s) => setStep(s, null)); }
+
+  function logReset() { $('status').textContent = ''; }
+  function logLine(msg, cls) {
     const s = $('status');
-    s.textContent += '\n' + msg;
+    const d = document.createElement('div');
+    d.className = 'line' + (cls ? ' ' + cls : '');
+    d.textContent = msg;
+    s.appendChild(d);
+    s.scrollTop = s.scrollHeight;
     console.log('[zkt]', msg);
   }
+
   function setBanner(msg, cls) {
     const b = $('banner');
     b.textContent = msg;
@@ -94,8 +108,42 @@
     const el = $('section-' + name);
     if (el) el.style.display = show ? 'block' : 'none';
   }
-  function setSpinner(on) {
+  function setBusy(on) {
+    $('prove').disabled = on;
     $('spinner').style.display = on ? 'inline-block' : 'none';
+    $('prove-label').textContent = on ? 'Proving…' : 'Generate proof';
+  }
+
+  // ============================================================
+  // Live form feedback (premium hint + payout inline validation)
+  // ============================================================
+  function updatePremiumHint() {
+    const el = $('premium-hint');
+    try {
+      const p = BigInt($('price_paid').value.trim());
+      const f = BigInt($('floor_price').value.trim());
+      const d = p - f;
+      if (d < 0n) {
+        el.textContent = 'Price paid is below the floor — the premium would be negative.';
+        el.className = 'hint err';
+      } else {
+        const usdc = (Number(d) / 100).toLocaleString('en-US',
+          { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        el.textContent = 'Premium = price paid − floor = ' + d.toString() + ' cents (' + usdc + ' USDC).';
+        el.className = 'hint';
+      }
+    } catch (e) {
+      el.textContent = 'Enter integer amounts in USDC cents.';
+      el.className = 'hint err';
+    }
+  }
+
+  function validatePayout(showError) {
+    const v = $('payout_hex').value.trim().toLowerCase().replace(/^0x/, '');
+    const ok = /^[0-9a-f]{64}$/.test(v);
+    $('payout_hex').setAttribute('aria-invalid', ok ? 'false' : 'true');
+    $('payout-err').style.display = ok || !showError ? 'none' : 'block';
+    return ok;
   }
 
   // ============================================================
@@ -104,7 +152,7 @@
   async function ensurePoseidon() {
     if (_pose) return;
     if (!window.__cljs || typeof window.__cljs.buildPoseidon !== 'function') {
-      throw new Error('circomlibjs no cargado: window.__cljs.buildPoseidon ausente');
+      throw new Error('circomlibjs not loaded: window.__cljs.buildPoseidon missing');
     }
     const p = await window.__cljs.buildPoseidon();
     _F     = p.F;
@@ -119,7 +167,9 @@
     const get = (k) => $(k).value.trim();
     const payoutHex = get('payout_hex').toLowerCase().replace(/^0x/, '');
     // Regex (no solo length): parseInt de un char no-hex da NaN -> byte 0 silencioso -> payout en ceros.
-    if (!/^[0-9a-f]{64}$/.test(payoutHex)) throw new Error('payout_hex debe ser 64 chars hex válidos (32 bytes)');
+    if (!/^[0-9a-f]{64}$/.test(payoutHex)) {
+      throw new Error('payout public key must be exactly 64 hex characters (32 bytes)');
+    }
     return {
       certifier_pk: [get('certifier_pk0'), get('certifier_pk1'), get('certifier_pk2')],
       attest_data:  [get('attest_data0'),  get('attest_data1')],
@@ -139,7 +189,7 @@
     const price_paid = BigInt(f.price_paid);
     const floor_price= BigInt(f.floor_price);
     if (price_paid < floor_price) {
-      throw new Error('price_paid < floor_price (premium negativo) — corrige el formulario');
+      throw new Error('price_paid is below floor_price (negative premium) — fix the pricing fields');
     }
     const premium_amount = price_paid - floor_price;
 
@@ -148,14 +198,14 @@
 
     // payout_hi/payout_lo: ed25519 pubkey 32B -> 2×16B BE
     const pub32 = hexToBytes(f.payout_hex);
-    if (pub32.length !== 32) throw new Error('payout_hex: 32 bytes esperados');
+    if (pub32.length !== 32) throw new Error('payout_hex: expected 32 bytes');
     const payout_hi = bytesToBigIntBE(pub32.slice(0, 16));
     const payout_lo = bytesToBigIntBE(pub32.slice(16, 32));
 
     const certifier_pk = f.certifier_pk.map(BigInt);
     const attest_data  = f.attest_data.map(BigInt);
-    if (certifier_pk.length !== 3) throw new Error('certifier_pk debe tener 3 entradas');
-    if (attest_data.length  !== 2) throw new Error('attest_data debe tener 2 entradas');
+    if (certifier_pk.length !== 3) throw new Error('certifier_pk must have 3 entries');
+    if (attest_data.length  !== 2) throw new Error('attest_data must have 2 entries');
 
     // Ola 3 (role-tag): cada leaf con su constante de rol
     const leaves = [
@@ -207,7 +257,7 @@
         const sib = BigInt(pathElements[d]);
         c = pathIndices[d] === 0 ? _pose([c, sib]) : _pose([sib, c]);
       }
-      if (c !== r_cert) throw new Error(`path ${i} no recalcula la raíz`);
+      if (c !== r_cert) throw new Error('Merkle path ' + i + ' does not recompute the root');
     }
 
     const paths = idxs.map(merklePath);
@@ -260,7 +310,7 @@
   // QR rendering (qrcode-generator UMD: window.qrcode)
   // ============================================================
   function renderQR(canvas, text) {
-    if (!window.qrcode) throw new Error('qrcode-generator no cargado');
+    if (!window.qrcode) throw new Error('qrcode-generator not loaded');
     // typeNumber=0 => auto-detect size; errorCorrectionLevel='M' is fine for short URLs.
     const qr = window.qrcode(0, 'M');
     qr.addData(text);
@@ -306,7 +356,7 @@
       _contract = j.terroir_contract;
       _network  = j.network || 'testnet';
     } catch (e) {
-      console.warn('No se pudo leer deployment.json:', e.message, '— usando fallback estático');
+      console.warn('Could not read deployment.json:', e.message, '— using static fallback');
     }
     if (!_contract) {
       // Fallback: lo que hay en deployments/testnet.json. Honesto si el archivo
@@ -330,7 +380,12 @@
     $('season_id').value     = DEFAULTS.season_id;
     $('lot_secret').value    = DEFAULTS.lot_secret;
     $('payout_hex').value    = DEFAULTS.payout_hex;
+    updatePremiumHint();
+    validatePayout(false);
   }
+
+  const fmtUSDC = (cents) => (Number(cents) / 100).toLocaleString('en-US',
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USDC';
 
   function showResults({ input, proof, pubSignals, ser }) {
     // pubSignals: Decisión A
@@ -342,9 +397,9 @@
     $('out-r_cert').textContent       = rCertHex;
     $('out-lot_commit').textContent   = lotCommitHex;
     $('out-nullifier').textContent    = nullHashHex;
-    $('out-premium').textContent      = (Number(premium) / 100).toFixed(2) + ' USDC';
+    $('out-premium').textContent      = fmtUSDC(premium);
     $('out-premium-cents').textContent= premium;
-    $('out-floor').textContent        = (Number(floorPrice) / 100).toFixed(2) + ' USDC';
+    $('out-floor').textContent        = fmtUSDC(floorPrice);
     $('out-payout-hi').textContent    = BigInt(payHi).toString(16).padStart(32, '0');
     $('out-payout-lo').textContent    = BigInt(payLo).toString(16).padStart(32, '0');
 
@@ -365,40 +420,49 @@
   }
 
   async function onProve() {
-    const btn = $('prove');
-    btn.disabled = true;
+    setBusy(true);
     setSection('result', false);
     setProofBadge('', '');
     setBanner('', '');
+    resetSteps();
+    logReset();
+    let cur = null;
+    const step = (name) => { setStep(name, 'active'); cur = name; };
+    const done = () => { if (cur) setStep(cur, 'done'); cur = null; };
     try {
-      setStatus('⏳ Inicializando Poseidon(BN254) con circomlibjs 0.1.7 (≈2MB)…', 'work');
-      setSpinner(true);
+      step('setup');
+      logLine('→ Initializing Poseidon (BN254) — circomlibjs 0.1.7, the same bundle that produced the VK (~2 MB)…', 'work');
       await ensurePoseidon();
-      appendStatus('✅ Poseidon listo (constantes idénticas al circuito).');
+      logLine('✓ Poseidon ready — constants identical to the circuit.', 'ok');
+      done();
 
-      setStatus('⏳ Construyendo witness input desde los datos del formulario…', 'work');
+      step('witness');
+      logLine('→ Building the witness input from the form…', 'work');
       const form = readForm();
       const input = await buildWitnessInput(form);
       _builtInput = input;
-      appendStatus('   r_cert computado = ' + input.r_cert.slice(0, 24) + '…');
-      appendStatus('   premium          = ' + input.premium_amount + ' (centavos)');
+      logLine('  r_cert  = ' + input.r_cert.slice(0, 24) + '…', 'dim');
+      logLine('  premium = ' + input.premium_amount + ' cents', 'dim');
+      done();
 
       // Honest check: ¿el r_cert del usuario coincide con el sembrado on-chain?
       const seedRcert = BigInt(SEED_R_CERT_HEX);
       const userRcert = BigInt(input.r_cert);
       if (userRcert !== seedRcert) {
         setBanner(
-          '⚠️ Estás FUERA del set acreditado: el r_cert que produces (' +
-          input.r_cert.slice(0, 20) + '…) NO coincide con el sembrado on-chain (' +
-          SEED_R_CERT_HEX.slice(0, 20) + '…). El contrato va a RECHAZAR tu prueba en `root == stored`.',
+          'Warning — outside the accredited set: your inputs produce r_cert ' +
+          input.r_cert.slice(0, 20) + '…, but the on-chain seed is ' +
+          SEED_R_CERT_HEX.slice(0, 20) + '…. The proof will still be generated, but the ' +
+          'contract will REJECT it at the root == stored check.',
           'warn'
         );
       } else {
-        setBanner('✅ Inputs dentro del set acreditado — la prueba va a matchear el r_cert sembrado on-chain.', 'ok');
+        setBanner('Inputs match the accredited set — the proof will match the r_cert seeded on-chain.', 'ok');
       }
 
-      setStatus('⏳ Generando witness + prueba Groth16 en el navegador (wasm 3.4MB + zkey 9MB)…\n' +
-                '   🔒 el testigo y la prueba se computan ACÁ; ningún dato sale de tu equipo.', 'work');
+      step('prove');
+      logLine('→ Generating the witness + Groth16 proof in your browser (wasm 3.4 MB + zkey 9 MB)…', 'work');
+      logLine('  Private inputs never leave this device.', 'dim');
       const t0 = performance.now();
       const r = await snarkjs.groth16.fullProve(
         input, './public/terroir_chain.wasm', './public/terroir_chain_0001.zkey'
@@ -406,26 +470,33 @@
       const dt = ((performance.now() - t0) / 1000).toFixed(1);
       _proof = r.proof;
       _pubSignals = r.publicSignals;
-      appendStatus('✅ Prueba generada en ' + dt + 's.');
-      appendStatus('   r_cert       = ' + _pubSignals[0].slice(0, 24) + '…');
-      appendStatus('   premium      = ' + _pubSignals[3]);
-      appendStatus('   nullifier    = ' + _pubSignals[6].slice(0, 24) + '…');
+      logLine('✓ Proof generated in ' + dt + ' s.', 'ok');
+      logLine('  r_cert    = ' + _pubSignals[0].slice(0, 24) + '…', 'dim');
+      logLine('  premium   = ' + _pubSignals[3], 'dim');
+      logLine('  nullifier = ' + _pubSignals[6].slice(0, 24) + '…', 'dim');
+      done();
 
-      setStatus($('status').textContent + '\n⏳ Verificando off-chain (misma VK que el contrato Soroban)…', 'work');
+      step('verify');
+      logLine('→ Verifying off-chain against the deployed verification key (same VK as the contract)…', 'work');
       const vk = await (await fetch('./public/verification_key.json')).json();
       const ok = await snarkjs.groth16.verify(vk, _pubSignals, _proof);
-      appendStatus(ok ? '✅ VERIFY OK — la prueba es válida contra la VK desplegada.' :
-                        '❌ VERIFY FALLÓ off-chain (no aceptable on-chain).');
-      setProofBadge(ok ? 'ok' : 'err', ok ? 'Prueba válida (off-chain)' : 'Prueba inválida');
+      logLine(ok ? '✓ VERIFY OK — the proof is valid against the deployed VK.'
+                 : '✗ VERIFY FAILED off-chain — the contract would reject this proof.',
+              ok ? 'ok' : 'err');
+      setProofBadge(ok ? 'ok' : 'err', ok ? 'Proof valid (off-chain)' : 'Proof invalid');
+      setStep('verify', ok ? 'done' : 'error');
+      cur = null;
 
-      setStatus($('status').textContent + '\n⏳ Serializando proof+pubSignals al layout BN254 (Soroban)…', 'work');
+      step('serialize');
+      logLine('→ Encoding proof + public signals into the BN254 layout Soroban expects…', 'work');
       _serialized = serialize(_proof, _pubSignals);
-      appendStatus('   proof.a   = ' + _serialized.proof.a.slice(0, 32) + '…  (64 bytes)');
-      appendStatus('   proof.b   = ' + _serialized.proof.b.slice(0, 32) + '…  (128 bytes)');
-      appendStatus('   proof.c   = ' + _serialized.proof.c.slice(0, 32) + '…  (64 bytes)');
-      appendStatus('   pub_signals = 7×32B (Decisión A)');
+      logLine('  proof.a     = ' + _serialized.proof.a.slice(0, 32) + '…  (64 bytes)', 'dim');
+      logLine('  proof.b     = ' + _serialized.proof.b.slice(0, 32) + '…  (128 bytes)', 'dim');
+      logLine('  proof.c     = ' + _serialized.proof.c.slice(0, 32) + '…  (64 bytes)', 'dim');
+      logLine('  pub_signals = 7×32 B (Decision A)', 'dim');
+      done();
 
-      setStatus($('status').textContent + '\n✅ Listo. Pegá el comando en tu shell para enviar la tx de claim.', 'ok');
+      logLine('✓ Done — paste the command below into your shell to submit the claim transaction.', 'ok');
       showResults({ input, proof: _proof, pubSignals: _pubSignals, ser: _serialized });
 
       // Sonda para el browser test (Puppeteer): exponer lo esencial.
@@ -441,12 +512,12 @@
       };
     } catch (e) {
       console.error(e);
-      setStatus('❌ Error: ' + (e && e.message ? e.message : e), 'err');
-      setProofBadge('err', 'Error durante el flujo');
+      if (cur) setStep(cur, 'error');
+      logLine('✗ Error: ' + (e && e.message ? e.message : e), 'err');
+      setProofBadge('err', 'Pipeline failed');
       window.__ZKT_RESULT__ = { ok: false, error: String(e && e.message || e) };
     } finally {
-      setSpinner(false);
-      btn.disabled = false;
+      setBusy(false);
     }
   }
 
@@ -454,7 +525,7 @@
   // Utils
   // ============================================================
   function hexToBytes(hex) {
-    if (hex.length % 2 !== 0) throw new Error('hex length impar');
+    if (hex.length % 2 !== 0) throw new Error('odd hex length');
     const out = new Uint8Array(hex.length / 2);
     for (let i = 0; i < out.length; i++) {
       out[i] = parseInt(hex.substr(i * 2, 2), 16);
@@ -471,14 +542,12 @@
   // Copy buttons
   // ============================================================
   function wireCopyButton(btnId, srcId) {
-    $(btnId).addEventListener('click', async () => {
+    const b = $(btnId);
+    const label = b.querySelector('.copy-text');
+    b.addEventListener('click', async () => {
       const text = $(srcId).textContent;
       try {
         await navigator.clipboard.writeText(text);
-        const b = $(btnId);
-        const old = b.textContent;
-        b.textContent = '✓ copiado';
-        setTimeout(() => { b.textContent = old; }, 1200);
       } catch (e) {
         // Fallback: select+execCommand
         const r = document.createRange();
@@ -488,6 +557,9 @@
         sel.addRange(r);
         try { document.execCommand('copy'); } catch (_) {}
       }
+      label.textContent = 'Copied ✓';
+      b.classList.add('copied');
+      setTimeout(() => { label.textContent = 'Copy'; b.classList.remove('copied'); }, 1400);
     });
   }
 
@@ -500,14 +572,20 @@
     $('prove').addEventListener('click', onProve);
     $('reset').addEventListener('click', () => {
       setFormDefaults();
-      setStatus('Formulario restaurado a los defaults (r_cert sembrado on-chain).', '');
+      resetSteps();
+      logReset();
+      logLine('Form restored to the demo defaults (matches the r_cert seeded on-chain).');
       setSection('result', false);
       setProofBadge('', '');
       setBanner('', '');
     });
+    $('price_paid').addEventListener('input', updatePremiumHint);
+    $('floor_price').addEventListener('input', updatePremiumHint);
+    $('payout_hex').addEventListener('blur', () => validatePayout(true));
+    $('payout_hex').addEventListener('input', () => validatePayout(false));
     wireCopyButton('copy-cmd', 'cmd');
     wireCopyButton('copy-qr-payload', 'qr-payload');
     wireCopyButton('copy-hex', 'cmd-hex');
-    setStatus('Listo. Pulsá "Generar prueba" para correr el flujo completo (dura ~1s).');
+    logLine('Ready — click "Generate proof" to run the full pipeline locally (~1 s in Chrome).');
   });
 })();
