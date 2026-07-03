@@ -12,6 +12,11 @@
 # generadores de witness (terroir_link_js, multiplier2_js)
 **/*_js/
 
+# EXCEPCIÓN: assets del frontend (Ola 5) — el zkey NO es reproducible (setup no
+# determinista) y es el único link a la VK desplegada → se preservan trackeados.
+!web/public/terroir_chain.wasm
+!web/public/terroir_chain_0001.zkey
+
 # === Claude/herramientas locales ===
 .claude/settings.local.json
 

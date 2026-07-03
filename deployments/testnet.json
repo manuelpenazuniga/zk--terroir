@@ -4,7 +4,7 @@
     "tusdc_issuer": "GBVSNPCNUEIJ4ZBP4CD4SVPXDVEGKQQNFA2NKU7D7K6UMHV5I3TH2E3Y",
     "tusdc_asset": "TUSDC:GBVSNPCNUEIJ4ZBP4CD4SVPXDVEGKQQNFA2NKU7D7K6UMHV5I3TH2E3Y",
     "tusdc_sac": "CDERQSVY6RMWDAQ5N6SAGF7BUBS47B2EUNWJIGRGHXPUKEHQO3CPLRCA",
-    "terroir_contract": "CBHAL7G57DPXXAR4BAZIXMSU3LUGPW4FPNYKPSRKZP3I5C4LP5STCM5W",
+    "terroir_contract": "CDECOLH6DVMVRLZV4ECNL7ZT4XDAGNJJBP4RXSLGNN4UTSVVYN7SH4O7",
     "admin": "GBVSNPCNUEIJ4ZBP4CD4SVPXDVEGKQQNFA2NKU7D7K6UMHV5I3TH2E3Y",
     "payout": "GCWZZEAFBUN2S2WOV5FFBX4QVRA7AORQLMUHJDCIMZZCO24YDXVTLDAG"
   },
@@ -14,23 +14,22 @@
     "escrow_final": 962500
   },
   "wasm": {
-    "hash": "39e0ac4f1c2f855c70049d2c916eb0cf181ce92eb8fe5f393442887391331167",
+    "hash": "132cf18df5aae1fcfaa3eb83af4015a7403433282cd8270b520054d09735d61d",
     "size_bytes": 10437
   },
   "e2e": {
     "happy_path": "pass",
     "replay_blocked": "pass",
     "tampered_proof_blocked": "pass",
-    "lot_status_registered": 1783036704,
-    "tx_deploy": "bc2994f442f1f9629f90dd1432d83bfd875b3dea4a41a2671bc5599a781d8bf6",
-    "tx_mint": "5abf01f7572d615344fc6a1687885e0d33f7ae190b3fd2da957f5e4b46857624",
-    "tx_init": "c84c4ca64cf361474d1fb5d65a74be4c342615ed3a7a1a154134cec8f6b725fc",
-    "tx_set_root": "a6ee514984ec8b78b7f3c2b43f5917b658129ee98004563b0153712215756c6b",
-    "tx_set_floor": "7c42f3f3c8834898e1f751eb27d3d213505eb484d1a62a10845aceb7ac570594",
-    "tx_trustline_payout": "c96f493634817d0115e67c7098673a0b555e331743656ad83555257b4e552ee3",
-    "tx_happy_path": "9eb4fe38088d1bfd32e5e840056f2b8ff7bbc3fcc8e4d7480f66470619cb3e5e"
+    "lot_status_registered": 1783041276,
+    "fullprove_offchain_verify": "OK (snarkjs.groth16.fullProve → verify contra VK desplegada)"
   },
-  "wave": "Ola 3 (role-tag custodia)",
-  "note": "Ola 3 E2E autocontenido: issuer/admin/deployer=vv-e2e2, payout=zkq-t0. Las claves del issuer (GAKMZTTT) y payout (GBSQXMKJ) del Día 2 no están en el keystore local, por eso el E2E usa cuentas controladas. VK re-horneada del circuito role-tag verifica on-chain; premium 37500 pagado; replay y tamper bloqueados (WasmVm trap).",
-  "updated_at": "2026-07-03T00:00:14Z"
+  "wave": "Ola 5 (demo browser-proving) — zkey preservado",
+  "note": "Ola 5 re-deploy: MISMO circuito role-tag (R1CS 3bfbf5b7 idéntico, dual-auditado en Ola 3), zkey+VK nuevos (setup no determinista) PRESERVADOS para el frontend. VK==lib.rs byte-a-byte. issuer/admin=vv-e2e2, payout=zkq-t0, SAC reusado (CDERQSVY).",
+  "updated_at": "2026-07-03T01:15:53Z",
+  "assets": {
+    "note": "zkey+wasm preservados en web/public/ (served al navegador); trusted-setup NO reproducible → el zkey es el ÚNICO link a la VK desplegada",
+    "zkey": "web/public/terroir_chain_0001.zkey",
+    "wasm": "web/public/terroir_chain.wasm"
+  }
 }
