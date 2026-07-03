@@ -3,10 +3,10 @@
 // genWitnessInput.js compartan las MISMAS constantes (round keys, MDS) sin
 // duplicar el `require` ni reinicializar wasm.
 //
-// `circomlibjs` está publicado como ESM y `circomlibjs` en spike/node_modules
-// viene como CJS. Apuntamos al path local para evitar versiones distintas.
+// circomlibjs se resuelve desde circuits/node_modules (pin EXACTO 0.1.7 en package.json,
+// `npm ci` = paso 0). Mismo par circomlib 2.0.5 / circomlibjs 0.1.7 que produjo la VK.
 const path = require('path');
-const CIRCOMLIBJS = require(path.join(__dirname, '..', '..', 'spike', 'node_modules', 'circomlibjs'));
+const CIRCOMLIBJS = require('circomlibjs');
 
 /**
  * Inicializa Poseidon(BN254) con las constantes idénticas a circomlib
@@ -24,4 +24,4 @@ async function initPoseidon() {
   return { pose, o, F, P, LEVELS, NLEAVES };
 }
 
-module.exports = { initPoseidon, CIRCOMLIBJS_PATH: path.join(__dirname, '..', '..', 'spike', 'node_modules', 'circomlibjs') };
+module.exports = { initPoseidon, CIRCOMLIBJS_PATH: require.resolve('circomlibjs') };

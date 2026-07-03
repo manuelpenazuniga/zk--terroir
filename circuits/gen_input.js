@@ -5,7 +5,7 @@
 // emite sus Merkle paths. Verifica todas las derivaciones públicas (Decisión A).
 const fs = require('fs');
 const path = require('path');
-const { buildPoseidon } = require('../spike/node_modules/circomlibjs');
+const { buildPoseidon } = require('circomlibjs');
 
 const LEVELS = 10;
 const NLEAVES = 1 << LEVELS; // 1024

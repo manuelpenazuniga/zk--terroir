@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { buildPoseidon } = require(path.join(__dirname, '..', 'spike', 'node_modules', 'circomlibjs'));
+const { buildPoseidon } = require('circomlibjs');
 
 const CIRCUITS_DIR = __dirname;
 const WASM = path.join(CIRCUITS_DIR, 'terroir_chain_js', 'terroir_chain.wasm');

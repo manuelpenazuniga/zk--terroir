@@ -1,0 +1,13 @@
+{
+  "name": "zk-terroir-circuits",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Circuito terroir_chain (Groth16/BN254) + infra de prueba. circomlib pin EXACTO para VK reproducible.",
+  "scripts": {
+    "prove": "./gen_proof.sh"
+  },
+  "dependencies": {
+    "circomlib": "2.0.5",
+    "circomlibjs": "0.1.7"
+  }
+}

@@ -14,7 +14,8 @@ CIRC=terroir_chain
 PTAU_BITS=15
 
 echo "### 0. compile (circom 2.x, bn128, sin warnings)"
-circom ${CIRC}.circom --r1cs --wasm --sym -o .
+# circomlib desde circuits/node_modules (npm ci). Pin EXACTO 2.0.5 => VK reproducible.
+circom ${CIRC}.circom --r1cs --wasm --sym -l node_modules -o .
 # sanity de señales públicas: deben ser 7 (Decisión A)
 PUB=$(snarkjs r1cs print ${CIRC}.r1cs 2>/dev/null | grep -c "public" || true)
 echo "  r1cs+sym+wasm listos"

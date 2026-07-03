@@ -3,10 +3,12 @@ pragma circom 2.1.0;
 // Cadena de 3 eslabones (Día 2, T1).
 // Reusa MerkleLevel / MerkleInclusion de spike/link1/terroir_link.circom
 // (copiados in-situ para NO tocar el spike ni crear doble `component main`).
-include "../spike/node_modules/circomlib/circuits/poseidon.circom";
-include "../spike/node_modules/circomlib/circuits/mux1.circom";
-include "../spike/node_modules/circomlib/circuits/comparators.circom";
-include "../spike/node_modules/circomlib/circuits/bitify.circom";
+// circomlib se resuelve desde circuits/node_modules vía `circom -l node_modules`
+// (ver gen_proof.sh + package.json, pin EXACTO circomlib 2.0.5). `npm ci` es el paso 0.
+include "circomlib/circuits/poseidon.circom";
+include "circomlib/circuits/mux1.circom";
+include "circomlib/circuits/comparators.circom";
+include "circomlib/circuits/bitify.circom";
 
 // --- Reutilizado de spike/link1/terroir_link.circom (sin modificaciones) ---
 template MerkleLevel() {
