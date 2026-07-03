@@ -51,7 +51,7 @@ template MerkleInclusion(levels) {
 // Decisión B (post-auditoría v3):
 //   Eslabón 0 — cooperativa — fija lot_id, season_id, price_paid y lot_secret a una
 //   atestación acreditada:
-//     leaf_0 = Poseidon(certifier_pk_0, season_id, price_paid, lot_secret) in R_cert
+//     leaf_0 = Poseidon(certifier_pk_0, ROLE_COOP, lot_id, season_id, price_paid, lot_secret) in R_cert
 //   Esto mata el double-cobro residual: season_id ya NO es libre (la atestación lo fija),
 //   y como nullifier_hash = Poseidon(lot_secret, season_id) está constreñido por la misma
 //   season_id de leaf_0, variar season_id rompe la membership en R_cert -> no hay segundo

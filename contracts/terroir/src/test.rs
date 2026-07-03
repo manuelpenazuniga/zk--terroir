@@ -49,11 +49,11 @@ fn fr(env: &Env, s: &str) -> Fr {
 }
 
 // ---------------------------------------------------------------------------
-// Real proof / public signals (T1 v3, serialized.json) — payout = GBSQXMKJ…QTDL
+// Real proof / public signals (Ola 3 role-tag, serialized.json) — payout = zkq-t0 (GCWZZEAF…)
 // ---------------------------------------------------------------------------
 
-// pubkey hex (32 bytes) of the payout account — default from gen_input.js fallback
-const PAYOUT_PUBKEY_HEX: &str = "3c0b8a02e3f16b9c4d7e5a3b0c0d6e1f4a2b3c4d5e6f7081920a3b4c5d6e7f81";
+// pubkey hex (32 bytes) of the payout account zkq-t0 (E2E Ola 3, testnet.json)
+const PAYOUT_PUBKEY_HEX: &str = "ad9c90050d1ba96aceaf4a50df90ac41f03a305b28748c486672276b981deb35";
 
 // r_cert, floor_price, lot_commit, premium_amount, payout_hi, payout_lo, nullifier_hash
 // Ola 3 (role-tag) — regenerated from new circuit with leaf arities 6/4/4
@@ -61,16 +61,16 @@ const PUB_R_CERT: &str = "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a7
 const PUB_FLOOR: i128 = 150_000; // 150000 cents = $1500.00
 const PUB_LOT_COMMIT: &str = "2ceda2ee11f38491b484858a98c200d48c97ce21fdf8e9217a62634de6da6563";
 const PUB_PREMIUM: i128 = 37_500; // 37500 cents = $375.00
-const PUB_PAYOUT_HI: &str = "000000000000000000000000000000003c0b8a02e3f16b9c4d7e5a3b0c0d6e1f";
-const PUB_PAYOUT_LO: &str = "000000000000000000000000000000004a2b3c4d5e6f7081920a3b4c5d6e7f81";
+const PUB_PAYOUT_HI: &str = "00000000000000000000000000000000ad9c90050d1ba96aceaf4a50df90ac41";
+const PUB_PAYOUT_LO: &str = "00000000000000000000000000000000f03a305b28748c486672276b981deb35";
 const PUB_NULLIFIER: &str = "01bbfda831bc496413713c87eb1d43e38482e2f28f7d1e9f92a2e85a38d9e437";
 
 const PROOF_A: &str =
-    "1fe37a1651770fcf861836437253d2509ffe95c3d829b3fc5eafe672a5ce2024190b4a54b3662755002a94575403f81daad5981c5a021f3fafef9f5901771e56";
+    "104b6c313642b87ed0ccf2cf6e0cccf716e3a018bf7fccb78dbbf74c985f0a1522589daa91ba6ff02c1d4c3923817ea8455f7140969716a274a3b276b004f4b2";
 const PROOF_B: &str =
-    "2f7d9b4c06a01dceebccb8a565d120956fc9b03d1ac8c55e27dd06dec0276bb315a7827c9847360b21abcaf48e97f840f810b3bc94eceafa82003928e37688ce1ce55463afc484e12779abad5a5e2b55310414d28076dfa371bfb36c6e9e52ad20d411cf12113a2c50148b282c312af2be1b09d0e325b72e53408968e22a0d95";
+    "0ba8c7f0c703ce782bd8af62e0e5e53826ab26f490fd2a514c68d420494850260a30608764e505ee4ff0ebe7512772a163ff2e9e178f6422f3465da5e1db73f9086520d6961bc9d1a0c79a102a3a90388ada083675ba9baa0e58c44eb6b7de902266b0c2d771da7eb0a2ebe4bd5d27f46d90f2a58cbf4ada5f5a85b5774b36dc";
 const PROOF_C: &str =
-    "1eda501d6dc5c53291731413d69dd80fe765cd53272200ca2518555e104e5e070c22a95a4ec34f2c0ba1b0506f81a6dd32acd8757b244f64bc5e24cdc79bdd52";
+    "2a4fe2586f7c09a1707357d750ee6b7d90c03e9d70229bca592422c47a3f652a03b62614d3092a770b9219843b3db394dc6f2acad9b5992e73ba8c600c27f8fb";
 
 /// Build the canonical Vec<Fr> matching `circuits/public.json` (Decisión A).
 fn real_pub_signals(env: &Env) -> Vec<Fr> {
