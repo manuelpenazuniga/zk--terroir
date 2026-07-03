@@ -24,3 +24,9 @@
 .DS_Store
 *.log
 *Zone.Identifier
+
+# === Local-only Docs ===
+docs/
+techs-specs-zk-terroir.md
+zk-terroir.md
+
