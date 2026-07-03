@@ -22,7 +22,9 @@
     "replay_blocked": "pass",
     "tampered_proof_blocked": "pass",
     "lot_status_registered": 1783041276,
-    "fullprove_offchain_verify": "OK (snarkjs.groth16.fullProve → verify contra VK desplegada)"
+    "fullprove_offchain_verify": "OK (snarkjs.groth16.fullProve → verify contra VK desplegada)",
+    "browser_proving": "pass (prueba generada en Chrome headless via snarkjs.groth16.fullProve → claim_premium on-chain TRUE → pagó 37500; tx 3167b6c4… fue el root fresco de test, root restaurado al seed)",
+    "root_restored_to_seed": "0228324e1057f1953a4914298d4f7ddba09104e41841f06a7666a787337dd17d"
   },
   "wave": "Ola 5 (demo browser-proving) — zkey preservado",
   "note": "Ola 5 re-deploy: MISMO circuito role-tag (R1CS 3bfbf5b7 idéntico, dual-auditado en Ola 3), zkey+VK nuevos (setup no determinista) PRESERVADOS para el frontend. VK==lib.rs byte-a-byte. issuer/admin=vv-e2e2, payout=zkq-t0, SAC reusado (CDERQSVY).",
