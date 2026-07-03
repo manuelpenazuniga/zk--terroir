@@ -38,18 +38,30 @@ consulta ese endpoint de solo-lectura (ver `verify/`).
 
 | Pieza | Estado |
 |---|---|
-| Verificación Groth16 **BN254 nativa on-chain** (host functions P25/P26, `pairing_check` + MSM) | ✅ **REAL** en Testnet |
-| Circuito de 3 eslabones (membership Merkle + hash-chain + range + nullifier), **auditado sound** | ✅ **REAL** (`circuits/terroir_chain.circom`) |
+| Verificación Groth16 **BN254 nativa on-chain** (host functions P25/P26: `pairing_check` + combinación lineal de public inputs con `g1_mul`/`g1_add` nativos) | ✅ **REAL** en Testnet |
+| Circuito de 3 eslabones (3× membership Merkle **role-tagged** + range + nullifier), **auditado sound** | ✅ **REAL** (`circuits/terroir_chain.circom`) |
 | Pago del premium en **SEP-41** (TUSDC de test) desde escrow del contrato | ✅ **REAL** (E2E: happy / replay-bloqueado / prueba-manipulada) |
 | Anti doble-cobro (nullifier persistente) y anti-inflación (floor pineado) | ✅ **REAL**, auditado |
 | Emisor de atestaciones (certificadoras) | 🟡 **MOCK honesto**: en producción, un oráculo reempaqueta PKI real (X.509/PGP) en credenciales; hoy el emisor es simulado |
 | Token USDC | 🟡 **TUSDC de test** (SAC en Testnet), no USDC de mainnet |
 | Alcance del demo | 🟡 **1 sola cooperativa / 1 lote** end-to-end; multi-coop y multi-región es trabajo futuro |
-| Orden de custodia finca→coop→tostador | 🟡 **stretch**: hoy se prueba que 3 certificadores distintos atestan el mismo lote; el orden estricto es Día 3 stretch |
+| Roles de custodia finca→coop→tostador | ✅ **REAL (role-tag, Ola 3)**: cada hoja compromete su rol {coop,finca,tostador} en la preimagen Poseidon → no-sustitución/no-omisión. El orden **temporal** estricto queda fuera (rompería Decisión A) → stretch Ola 7 |
 
 **El "guiño de tecnología nueva de Stellar" es BN254 + MSM nativos (P25 22-ene-2026, P26 6-may-2026)**,
 que es genuino y load-bearing. Poseidon vive **solo dentro del circuito** (circomlib); el contrato
 nunca recomputa Poseidon: trata raíces/nullifiers como field elements opacos que el SNARK ya validó.
+
+> **Honestidad técnica (no sobre-vendemos ninguna pieza):**
+> - La combinación lineal de los 7 public inputs corre sobre `g1_mul`/`g1_add` **nativos (P26)** en un
+>   loop — es la operación MSM hecha con scalar-muls nativos, **no** una precompilación MSM dedicada.
+>   Con 7 inputs el costo es irrelevante; la precisión narrativa, no.
+> - **Trusted setup de juguete:** `gen_proof.sh` corre un Powers-of-Tau de **una sola contribución** con
+>   entropía hardcodeada (`-e="terroir-chain-1"`). Alcanza para un MVP; **producción exige una ceremonia
+>   multi-party**. No es ceremonial hoy — lo decimos claro.
+> - **Reproducibilidad:** los artefactos pesados (`*.ptau/*.zkey/*.wtns`) están gitignored y se regeneran
+>   con `gen_proof.sh` (paso 0 = `npm ci`, pin exacto circomlib 2.0.5 / circomlibjs 0.1.7). La VK, `proof.json`,
+>   `public.json` y `serialized.json` **sí están commiteados** → la verificación on-chain es reproducible sin
+>   regenerar el circuito.
 
 ---
 
@@ -70,9 +82,11 @@ docs/             plan, decisiones, audit-log, internal/ (routing y orquestació
 ## Cómo correrlo
 
 ```bash
-# 1) Circuito: generar prueba y verificar off-chain
-cd circuits && ./gen_proof.sh
-snarkjs groth16 verify verification_key.json public.json proof.json     # -> OK
+# 0) Dependencias del circuito (circomlib/circomlibjs, pin exacto en package.json)
+cd circuits && npm ci
+# 1) Circuito: generar prueba y verificar off-chain (snarkjs vía npx; no requiere install global)
+./gen_proof.sh
+npx snarkjs groth16 verify verification_key.json public.json proof.json     # -> OK
 
 # 2) Contrato: build + tests (incluye la suite con prueba real)
 cd ../contracts/terroir && cargo test && stellar contract build
