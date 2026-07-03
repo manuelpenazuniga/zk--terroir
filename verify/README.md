@@ -39,9 +39,9 @@ no reclamado (respuesta válida) · `2` = uso incorrecto · `3` = error de red/C
 Salida esperada:
 
 ```
-contrato  : CBHFN7QUJJMA2RXMPVNYCFSCVZDQSOSVIRNVHJKPYHTE4DNHWX5ATJQQ  (testnet)
+contrato  : CBHAL7G57DPXXAR4BAZIXMSU3LUGPW4FPNYKPSRKZP3I5C4LP5STCM5W  (testnet)
 lot_commit: 2ceda2ee11f38491b484858a98c200d48c97ce21fdf8e9217a62634de6da6563
-✓ Lote certificado — premium pagado el 2026-06-28 15:51:55 UTC
+✓ Lote certificado — premium pagado el ts=1783036704
 ```
 
 Con un `lot_commit` inventado:
